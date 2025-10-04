@@ -262,17 +262,6 @@ export const ProgramCreationWizard = () => {
         </div>
 
         <div className="border-t border-secondary-200 px-8 py-6 flex items-center justify-between bg-white">
-          <button
-            onClick={goToPreviousStep}
-            disabled={currentStep === 1}
-            className="flex items-center gap-2 px-4 py-2 text-secondary-700 hover:text-secondary-900 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Back
-          </button>
-
           <span className="text-sm text-secondary-600">
             Step {currentStep} of {TOTAL_STEPS}
           </span>

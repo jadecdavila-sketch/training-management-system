@@ -86,11 +86,16 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
 
       if (initialSessions.length > 0) {
         updateFormData({ sessions: initialSessions });
-        // Expand first session by default
-        setExpandedSessions(new Set([initialSessions[0].id]));
       }
     }
   }, [formData.blocks, formData.useBlocks, formData.numberOfSessions]);
+
+  // Auto-expand first session when sessions exist
+  useEffect(() => {
+    if (formData.sessions.length > 0 && expandedSessions.size === 0) {
+      setExpandedSessions(new Set([formData.sessions[0].id]));
+    }
+  }, [formData.sessions]);
 
   const handleUpdateSession = (id: string, updates: Partial<Session>) => {
     updateFormData({
@@ -176,11 +181,11 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
           {formData.blocks.map((block, blockIndex) => {
             const blockSessions = getSessionsForBlock(block.id);
             return (
-              <div key={block.id} className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+              <div key={block.id} className="bg-stone-50 border border-stone-200 rounded-lg p-6">
                 {/* Block Header */}
                 <div className="flex items-center gap-4 mb-4 justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium text-teal-900">Block Name:</div>
+                    <div className="text-sm font-medium text-stone-700">Block Name:</div>
                     <input
                       type="text"
                       value={block.name}
@@ -191,7 +196,7 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
 
                   {blockIndex > 0 && (
                     <div className="flex items-center gap-3">
-                      <div className="text-sm text-teal-700">Delay after previous block:</div>
+                      <div className="text-sm text-stone-600">Delay after previous block:</div>
                       <select
                         value={formData.blockDelays[block.id] || 0}
                         onChange={(e) => handleUpdateBlockDelay(block.id, parseInt(e.target.value))}
@@ -202,6 +207,12 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
                         <option value={2}>2 weeks</option>
                         <option value={3}>3 weeks</option>
                         <option value={4}>4 weeks</option>
+                        <option value={6}>6 weeks</option>
+                        <option value={8}>8 weeks</option>
+                        <option value={12}>12 weeks</option>
+                        <option value={16}>16 weeks</option>
+                        <option value={20}>20 weeks</option>
+                        <option value={24}>24 weeks</option>
                       </select>
                     </div>
                   )}
@@ -380,7 +391,7 @@ function SessionAccordion({ session, sessionIndex, isExpanded, onToggle, onUpdat
                     toggleMultiSelect('participantTypes', e.target.value);
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 mb-2"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 mb-2"
               >
                 <option value="">Add participant types</option>
                 {PARTICIPANT_TYPES.filter(t => !session.participantTypes.includes(t)).map((type) => (
@@ -424,7 +435,7 @@ function SessionAccordion({ session, sessionIndex, isExpanded, onToggle, onUpdat
                       toggleMultiSelect('facilitatorSkills', e.target.value);
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 mb-2"
+                  className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 mb-2"
                 >
                   <option value="">Add facilitator skills</option>
                   {FACILITATOR_SKILLS.filter(s => !session.facilitatorSkills.includes(s)).map((skill) => (
@@ -464,7 +475,7 @@ function SessionAccordion({ session, sessionIndex, isExpanded, onToggle, onUpdat
               <select
                 value={session.locationTypes[0] || ''}
                 onChange={(e) => onUpdate(session.id, { locationTypes: e.target.value ? [e.target.value] : [] })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               >
                 <option value="">Select location type</option>
                 {LOCATION_TYPES.map((type) => (
