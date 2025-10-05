@@ -1,4 +1,4 @@
-import { CheckCircle2, Calendar, Users, MapPin, BookOpen } from 'lucide-react';
+import { CheckCircle2, Calendar, Users, BookOpen } from 'lucide-react';
 
 interface ProgramFormData {
   programName: string;
@@ -84,6 +84,26 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
         <p className="text-gray-600">
           Review your program configuration before finalizing. You can go back to any step to make changes.
         </p>
+      </div>
+
+      {/* KPI Summary */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600 mb-1">Total Sessions</p>
+          <p className="text-3xl font-bold text-gray-900">{formData.sessions.length}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600 mb-1">Scheduled</p>
+          <p className="text-3xl font-bold text-teal-600">{formData.scheduledSessions.length}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600 mb-1">Cohorts</p>
+          <p className="text-3xl font-bold text-gray-900">{formData.numberOfCohorts}</p>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600 mb-1">Duration (Weeks)</p>
+          <p className="text-3xl font-bold text-teal-600">{totalDuration}</p>
+        </div>
       </div>
 
       <div className="space-y-6">
@@ -192,75 +212,27 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
         </div>
 
         {/* Resource Assignments */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Facilitators */}
-          {formData.facilitatorAssignments && formData.facilitatorAssignments.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Facilitators</h2>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Total Assignments</p>
-                  <p className="font-medium text-gray-900">{formData.facilitatorAssignments.length}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Unique Facilitators</p>
-                  <p className="font-medium text-gray-900">
-                    {new Set(formData.facilitatorAssignments.map(a => a.facilitatorName)).size}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Sessions Requiring Facilitators</p>
-                  <p className="font-medium text-gray-900">{sessionsRequiringFacilitators}</p>
-                </div>
+        {formData.facilitatorAssignments && formData.facilitatorAssignments.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Facilitators</h2>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Total Assignments</p>
+                <p className="font-medium text-gray-900">{formData.facilitatorAssignments.length}</p>
               </div>
-            </div>
-          )}
-
-          {/* Locations */}
-          {formData.locationAssignments && formData.locationAssignments.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-teal-600" />
-                Locations
-              </h2>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Total Assignments</p>
-                  <p className="font-medium text-gray-900">{formData.locationAssignments.length}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">Unique Locations</p>
-                  <p className="font-medium text-gray-900">
-                    {new Set(formData.locationAssignments.map(a => a.locationName)).size}
-                  </p>
-                </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Unique Facilitators</p>
+                <p className="font-medium text-gray-900">
+                  {new Set(formData.facilitatorAssignments.map(a => a.facilitatorName)).size}
+                </p>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Summary Stats */}
-        <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-teal-900 mb-4">Program Statistics</h2>
-          <div className="grid grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-teal-700">{formData.sessions.length}</p>
-              <p className="text-sm text-teal-600 mt-1">Total Sessions</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-teal-700">{formData.scheduledSessions.length}</p>
-              <p className="text-sm text-teal-600 mt-1">Scheduled</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-teal-700">{formData.numberOfCohorts}</p>
-              <p className="text-sm text-teal-600 mt-1">Cohorts</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-teal-700">{totalDuration}</p>
-              <p className="text-sm text-teal-600 mt-1">Weeks</p>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">Sessions Requiring Facilitators</p>
+                <p className="font-medium text-gray-900">{sessionsRequiringFacilitators}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div className="bg-white border-2 border-teal-500 rounded-lg p-6">
