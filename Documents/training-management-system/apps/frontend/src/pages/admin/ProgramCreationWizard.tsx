@@ -4,6 +4,7 @@ import { Step1ProgramDetails } from '@/components/program/Step1ProgramDetails';
 import { Step2TrainingSessions } from '@/components/program/Step2TrainingSessions';
 import { Step3SessionDetails } from '@/components/program/Step3SessionDetails';
 import { Step4SessionCadence } from '@/components/program/Step4SessionCadence';
+import { Step5ProgramStructure } from '@/components/program/Step5ProgramStructure';
 
 interface ProgramFormData {
   programName: string;
@@ -34,11 +35,13 @@ interface ProgramFormData {
   }>;
   scheduledSessions: Array<{
     sessionId: string;
-    day: string;
+    startWeek: number;
+    startDay: string;
     startTime: string;
-    weekIndex: number;
+    endWeek: number;
+    endDay: string;
+    endTime: string;
     blockId: string;
-    duration: number;
   }>;
 }
 
@@ -78,6 +81,8 @@ export const ProgramCreationWizard = () => {
         return formData.sessions.every(s => s.name && s.groupSizeMin > 0 && s.groupSizeMax >= s.groupSizeMin);
       case 4:
         return true;
+      case 5:
+        return true; // Review step, always valid
       default:
         return true;
     }
@@ -169,7 +174,16 @@ export const ProgramCreationWizard = () => {
         );
       case 4:
         return (
-          <Step4SessionCadence 
+          <Step4SessionCadence
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 5:
+        return (
+          <Step5ProgramStructure
             formData={formData}
             updateFormData={updateFormData}
             onNext={goToNextStep}
@@ -178,7 +192,7 @@ export const ProgramCreationWizard = () => {
         );
       default:
         return (
-          <Step1ProgramDetails 
+          <Step1ProgramDetails
             formData={formData}
             updateFormData={updateFormData}
             onNext={goToNextStep}

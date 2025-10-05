@@ -41,18 +41,28 @@ const FACILITATOR_SKILLS = ['Leadership Training', 'Technical Skills', 'Complian
 const LOCATION_TYPES = ['Classroom', 'Virtual', 'On-site', 'Hybrid'];
 
 export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }: Step3Props) {
-  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => {
+    // Open the first session by default
+    const firstSession = formData.sessions[0];
+    return firstSession ? new Set([firstSession.id]) : new Set();
+  });
 
   // Initialize sessions based on blocks or numberOfSessions
   useEffect(() => {
-    // Only auto-generate if no sessions exist
-    if (formData.sessions.length === 0) {
-      const initialSessions: Session[] = [];
+    const initialSessions: Session[] = [];
 
-      if (formData.useBlocks && formData.blocks.length > 0) {
-        // Auto-generate sessions for each block based on numberOfSessions
-        formData.blocks.forEach(block => {
-          for (let i = 0; i < block.numberOfSessions; i++) {
+    if (formData.useBlocks && formData.blocks.length > 0) {
+      // Auto-generate sessions for each block based on numberOfSessions
+      formData.blocks.forEach(block => {
+        // Keep existing sessions for this block if they exist
+        const existingSessions = formData.sessions.filter(s => s.blockId === block.id);
+
+        for (let i = 0; i < block.numberOfSessions; i++) {
+          if (existingSessions[i]) {
+            // Keep existing session
+            initialSessions.push(existingSessions[i]);
+          } else {
+            // Create new session
             initialSessions.push({
               id: `session-${block.id}-${i}-${Date.now()}`,
               blockId: block.id,
@@ -66,10 +76,19 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
               locationTypes: [],
             });
           }
-        });
-      } else if (!formData.useBlocks && formData.numberOfSessions > 0) {
-        // Auto-generate sessions based on numberOfSessions
-        for (let i = 0; i < formData.numberOfSessions; i++) {
+        }
+      });
+    } else if (!formData.useBlocks && formData.numberOfSessions > 0) {
+      // Keep existing sessions without blockId
+      const existingSessions = formData.sessions.filter(s => !s.blockId);
+
+      // Auto-generate sessions based on numberOfSessions
+      for (let i = 0; i < formData.numberOfSessions; i++) {
+        if (existingSessions[i]) {
+          // Keep existing session
+          initialSessions.push(existingSessions[i]);
+        } else {
+          // Create new session
           initialSessions.push({
             id: `session-${i}-${Date.now()}`,
             name: `Session ${i + 1}`,
@@ -83,9 +102,15 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
           });
         }
       }
+    }
 
+    // Only update if sessions have changed
+    if (JSON.stringify(initialSessions) !== JSON.stringify(formData.sessions)) {
+      updateFormData({ sessions: initialSessions });
+
+      // Open the first session by default when sessions change
       if (initialSessions.length > 0) {
-        updateFormData({ sessions: initialSessions });
+        setExpandedSessions(new Set([initialSessions[0].id]));
       }
     }
   }, [formData.blocks, formData.useBlocks, formData.numberOfSessions]);
@@ -200,7 +225,7 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
                       <select
                         value={formData.blockDelays[block.id] || 0}
                         onChange={(e) => handleUpdateBlockDelay(block.id, parseInt(e.target.value))}
-                        className="px-3 py-1 border-0 bg-white rounded text-sm focus:ring-2 focus:ring-teal-500"
+                        className="px-3 py-1 pr-8 border-0 bg-white rounded text-sm focus:ring-2 focus:ring-teal-500"
                       >
                         <option value={0}>No delay</option>
                         <option value={1}>1 week</option>
