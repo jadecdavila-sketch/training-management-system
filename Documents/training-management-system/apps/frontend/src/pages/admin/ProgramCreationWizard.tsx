@@ -5,6 +5,7 @@ import { Step2TrainingSessions } from '@/components/program/Step2TrainingSession
 import { Step3SessionDetails } from '@/components/program/Step3SessionDetails';
 import { Step4SessionCadence } from '@/components/program/Step4SessionCadence';
 import { Step5ProgramStructure } from '@/components/program/Step5ProgramStructure';
+import { Step6CohortsBlackout } from '@/components/program/Step6CohortsBlackout';
 
 interface ProgramFormData {
   programName: string;
@@ -43,6 +44,13 @@ interface ProgramFormData {
     endTime: string;
     blockId: string;
   }>;
+  numberOfCohorts: number;
+  blackoutPeriods: Array<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
 }
 
 const TOTAL_STEPS = 10;
@@ -62,6 +70,8 @@ export const ProgramCreationWizard = () => {
     blockDelays: {},
     sessions: [],
     scheduledSessions: [],
+    numberOfCohorts: 2,
+    blackoutPeriods: [],
   });
 
   const updateFormData = (updates: Partial<ProgramFormData>) => {
@@ -83,6 +93,8 @@ export const ProgramCreationWizard = () => {
         return true;
       case 5:
         return true; // Review step, always valid
+      case 6:
+        return formData.numberOfCohorts > 0;
       default:
         return true;
     }
@@ -184,6 +196,15 @@ export const ProgramCreationWizard = () => {
       case 5:
         return (
           <Step5ProgramStructure
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 6:
+        return (
+          <Step6CohortsBlackout
             formData={formData}
             updateFormData={updateFormData}
             onNext={goToNextStep}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface ScheduledSession {
   sessionId: string;
@@ -44,7 +44,30 @@ interface Step4Props {
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
+const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+const SESSION_COLORS = [
+  { bg: '#385D84', hover: '#2d4a6a' },
+  { bg: '#09CDB2', hover: '#07a390' },
+  { bg: '#0D2539', hover: '#091a28' },
+  { bg: '#FF8E01', hover: '#cc7201' },
+  { bg: '#FFCC01', hover: '#cca301' },
+  { bg: '#9DC401', hover: '#7d9d01' }
+];
+
+// Helper function to convert 24h time to 12h AM/PM format
+const formatTime12Hour = (time24: string): string => {
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
+};
+
+// Helper function to get color for a session
+const getSessionColor = (sessionId: string) => {
+  const hash = sessionId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return SESSION_COLORS[hash % SESSION_COLORS.length];
+};
 
 export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }: Step4Props) {
   // For non-block mode, use a dummy blockId
@@ -110,6 +133,9 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
   };
 
   const getSessionsForSlot = (day: string, time: string) => {
+    const dayIndex = DAYS.indexOf(day);
+    const timeIndex = TIME_SLOTS.indexOf(time);
+
     // Get sessions that start in this slot
     const sessionsStartingHere = formData.scheduledSessions.filter(
       s => s.startDay === day &&
@@ -119,9 +145,6 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
     );
 
     // For Monday at the first time slot, also check for sessions continuing from previous week
-    const dayIndex = DAYS.indexOf(day);
-    const timeIndex = TIME_SLOTS.indexOf(time);
-
     if (dayIndex === 0 && timeIndex === 0) {
       const continuingSessions = formData.scheduledSessions.filter(
         s => s.blockId === activeBlockId &&
@@ -134,50 +157,33 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
     return sessionsStartingHere;
   };
 
-  const isTimeSlotOccupied = (day: string, time: string) => {
-    // Check if this slot is occupied by a session that started earlier or spans this slot
+  const isPartOfMultiDaySession = (day: string, time: string) => {
     const dayIndex = DAYS.indexOf(day);
     const timeIndex = TIME_SLOTS.indexOf(time);
-    if (dayIndex === -1 || timeIndex === -1) return false;
+    if (dayIndex === -1 || timeIndex === -1) return null;
 
-    return formData.scheduledSessions.some(session => {
+    // Check if this slot is part of a multi-day session (but not the starting slot)
+    return formData.scheduledSessions.find(session => {
       if (session.blockId !== activeBlockId) return false;
+      if (session.startWeek !== currentWeekIndex || session.endWeek !== currentWeekIndex) return false;
 
-      // Check if this slot is within the session's time range
-      const sessionStartWeek = session.startWeek;
-      const sessionEndWeek = session.endWeek;
       const sessionStartDayIndex = DAYS.indexOf(session.startDay);
       const sessionEndDayIndex = DAYS.indexOf(session.endDay);
+
+      // Only multi-day sessions
+      if (sessionStartDayIndex === sessionEndDayIndex) return false;
+
+      // Check if current slot is between start and end (but not the start itself)
       const sessionStartTimeIndex = TIME_SLOTS.indexOf(session.startTime);
-      const sessionEndTimeIndex = TIME_SLOTS.indexOf(session.endTime);
 
-      // If session spans multiple weeks
-      if (sessionStartWeek < currentWeekIndex && sessionEndWeek > currentWeekIndex) {
-        return true; // This slot is within a multi-week session
-      }
-
-      // If this is the start week
-      if (sessionStartWeek === currentWeekIndex && sessionEndWeek > currentWeekIndex) {
-        if (dayIndex > sessionStartDayIndex) return true;
-        if (dayIndex === sessionStartDayIndex && timeIndex > sessionStartTimeIndex) return true;
-      }
-
-      // If this is the end week
-      if (sessionEndWeek === currentWeekIndex && sessionStartWeek < currentWeekIndex) {
-        if (dayIndex < sessionEndDayIndex) return true;
-        if (dayIndex === sessionEndDayIndex && timeIndex < sessionEndTimeIndex) return true;
-      }
-
-      // If session is within the same week
-      if (sessionStartWeek === currentWeekIndex && sessionEndWeek === currentWeekIndex) {
-        // Same day session
-        if (sessionStartDayIndex === sessionEndDayIndex && dayIndex === sessionStartDayIndex) {
-          return timeIndex > sessionStartTimeIndex && timeIndex < sessionEndTimeIndex;
+      // If we're on a day after the start day and before/on the end day
+      if (dayIndex > sessionStartDayIndex && dayIndex <= sessionEndDayIndex) {
+        // If we're on the end day, only show if before end time
+        if (dayIndex === sessionEndDayIndex) {
+          const sessionEndTimeIndex = TIME_SLOTS.indexOf(session.endTime);
+          return timeIndex < sessionEndTimeIndex;
         }
-        // Multi-day session
-        if (dayIndex > sessionStartDayIndex && dayIndex < sessionEndDayIndex) return true;
-        if (dayIndex === sessionStartDayIndex && timeIndex > sessionStartTimeIndex) return true;
-        if (dayIndex === sessionEndDayIndex && timeIndex < sessionEndTimeIndex) return true;
+        return true; // We're on a middle day, show it
       }
 
       return false;
@@ -306,20 +312,25 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
                   return (
                     <div
                       key={idx}
-                      onClick={() => handleRemoveSession(scheduledSession)}
-                      className="flex items-center justify-between p-3 bg-white rounded border border-purple-300 hover:bg-purple-50 cursor-pointer group"
+                      className="flex items-center justify-between p-3 bg-white rounded border border-purple-300 group relative"
                     >
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">{session?.name}</div>
                         <div className="text-sm text-gray-600">
-                          Week {scheduledSession.startWeek + 1} {scheduledSession.startDay} {scheduledSession.startTime} →
-                          Week {scheduledSession.endWeek + 1} {scheduledSession.endDay} {scheduledSession.endTime}
+                          Week {scheduledSession.startWeek + 1} {scheduledSession.startDay} {formatTime12Hour(scheduledSession.startTime)} →
+                          Week {scheduledSession.endWeek + 1} {scheduledSession.endDay} {formatTime12Hour(scheduledSession.endTime)}
                         </div>
                         <div className="text-xs text-purple-700 mt-1">{statusLabel}</div>
                       </div>
-                      <div className="text-sm text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Click to remove
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSession(scheduledSession);
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   );
                 })}
@@ -343,24 +354,61 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
           {TIME_SLOTS.map((time, idx) => (
             <div key={time} className={`grid grid-cols-6 ${idx < TIME_SLOTS.length - 1 ? 'border-b border-gray-200' : ''}`}>
               <div className="p-3 text-sm text-gray-600 bg-gray-50">
-                {time} - {TIME_SLOTS[idx + 1] || '16:00'}
+                {formatTime12Hour(time)} - {formatTime12Hour(TIME_SLOTS[idx + 1] || '16:00')}
               </div>
               {DAYS.map(day => {
                 const sessionsInSlot = getSessionsForSlot(day, time);
-                const isOccupied = isTimeSlotOccupied(day, time);
+                const multiDaySession = isPartOfMultiDaySession(day, time);
+                const timeIndex = TIME_SLOTS.indexOf(time);
+
                 return (
                   <div
                     key={day}
-                    onClick={() => !isOccupied && handleSlotClick(day, time)}
-                    className={`p-2 border-l border-gray-200 min-h-[80px] relative ${
-                      isOccupied ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50 cursor-pointer'
-                    }`}
+                    onClick={() => handleSlotClick(day, time)}
+                    className="p-2 border-l border-gray-200 min-h-[80px] relative hover:bg-gray-50 cursor-pointer"
                   >
+                    {/* Show continuation block for multi-day sessions - only at first time slot */}
+                    {multiDaySession && timeIndex === 0 && (() => {
+                      const dayIndex = DAYS.indexOf(day);
+                      const sessionEndDayIndex = DAYS.indexOf(multiDaySession.endDay);
+                      const sessionEndTimeIndex = TIME_SLOTS.indexOf(multiDaySession.endTime);
+
+                      // If this is the end day, calculate height to end time
+                      let blockHeight = TIME_SLOTS.length * 80 - 16;
+                      if (dayIndex === sessionEndDayIndex && sessionEndTimeIndex !== -1) {
+                        // Height should be from top to the end time slot
+                        blockHeight = (sessionEndTimeIndex + 1) * 80 - 16;
+                      }
+
+                      const sessionColor = getSessionColor(multiDaySession.sessionId);
+
+                      return (
+                        <div
+                          className="absolute inset-2 rounded flex flex-col items-center justify-center text-white text-xs group"
+                          style={{
+                            height: `${blockHeight}px`,
+                            backgroundColor: sessionColor.bg,
+                            zIndex: 10,
+                            pointerEvents: 'none'
+                          }}
+                        >
+                          <div className="font-medium">↔</div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveSession(multiDaySession);
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ pointerEvents: 'auto' }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })()}
                     {sessionsInSlot.map((scheduledSession, sessionIdx) => {
                       const session = formData.sessions.find(s => s.id === scheduledSession.sessionId);
 
-                      // Check if this is a multi-week session
-                      const isMultiWeek = scheduledSession.startWeek !== scheduledSession.endWeek;
                       const isContinuingFromPrevious = scheduledSession.startWeek < currentWeekIndex;
                       const isContinuingToNext = scheduledSession.endWeek > currentWeekIndex;
 
@@ -407,32 +455,50 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
                       }
 
                       const heightPx = durationSlots * 80;
-                      const bgColor = isMultiWeek ? 'bg-purple-500 hover:bg-purple-600' : 'bg-teal-500 hover:bg-teal-600';
+                      const sessionColor = getSessionColor(scheduledSession.sessionId);
+
+                      // Calculate left position and width for side-by-side display
+                      const totalSessions = sessionsInSlot.length;
+                      const widthPercent = 100 / totalSessions;
+                      const leftPercent = (sessionIdx * widthPercent);
 
                       return (
                         <div
                           key={sessionIdx}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveSession(scheduledSession);
-                          }}
-                          className={`${bgColor} text-white rounded p-2 mb-2 cursor-pointer group absolute left-2 right-2 top-2`}
+                          className="text-white rounded p-2 mb-2 group absolute top-2 transition-colors"
                           style={{
+                            backgroundColor: sessionColor.bg,
                             height: `${heightPx - 16}px`,
-                            zIndex: 10
+                            left: `${leftPercent}%`,
+                            width: `calc(${widthPercent}% - 8px)`,
+                            marginLeft: '4px',
+                            zIndex: 10,
+                            pointerEvents: 'none'
                           }}
-                          title="Click to remove"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = sessionColor.hover;
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = sessionColor.bg;
+                          }}
                         >
                           <div className="text-sm font-medium truncate">{session?.name}</div>
                           <div className="text-xs opacity-90 mt-1">
-                            {displayStartTime} - {displayEndTime}
+                            {displayStartTime === '(Cont.)' ? displayStartTime : formatTime12Hour(displayStartTime)} - {displayEndTime === '(Cont.)' ? displayEndTime : formatTime12Hour(displayEndTime)}
                           </div>
                           <div className="text-xs opacity-90">
                             {durationLabel}
                           </div>
-                          <div className="text-xs opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                            Click to remove
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveSession(scheduledSession);
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ pointerEvents: 'auto' }}
+                          >
+                            ×
+                          </button>
                         </div>
                       );
                     })}
@@ -588,12 +654,19 @@ function AddSessionModal({ sessions, selectedSlot, totalWeeks, currentWeek, sche
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Time</label>
-              <input
-                type="time"
+              <select
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm"
-              />
+              >
+                {Array.from({ length: 40 }, (_, i) => {
+                  const hour = Math.floor(i / 4) + 8;
+                  const minute = (i % 4) * 15;
+                  if (hour > 17) return null;
+                  const time24 = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                  return <option key={time24} value={time24}>{formatTime12Hour(time24)}</option>;
+                }).filter(Boolean)}
+              </select>
             </div>
           </div>
         </div>
@@ -630,12 +703,19 @@ function AddSessionModal({ sessions, selectedSlot, totalWeeks, currentWeek, sche
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Time</label>
-              <input
-                type="time"
+              <select
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 text-sm"
-              />
+              >
+                {Array.from({ length: 40 }, (_, i) => {
+                  const hour = Math.floor(i / 4) + 8;
+                  const minute = (i % 4) * 15;
+                  if (hour > 17) return null;
+                  const time24 = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                  return <option key={time24} value={time24}>{formatTime12Hour(time24)}</option>;
+                }).filter(Boolean)}
+              </select>
             </div>
           </div>
         </div>
