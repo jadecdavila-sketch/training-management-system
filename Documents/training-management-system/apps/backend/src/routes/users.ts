@@ -4,6 +4,7 @@ import * as userController from '../controllers/userController.js';
 const router = Router();
 
 router.get('/', userController.getAll);
+router.get('/facilitators/list', userController.getFacilitators);
 router.get('/:id', userController.getById);
 router.post('/', userController.create);
 router.put('/:id', userController.update);

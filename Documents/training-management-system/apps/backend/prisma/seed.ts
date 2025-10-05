@@ -123,18 +123,28 @@ async function main() {
     }),
   ]);
 
-  // Create sample locations
+  // Delete existing locations first to ensure clean seed
+  await prisma.location.deleteMany({});
+
+  // Create sample locations with various types and capacities
   const locations = await Promise.all([
+    // Conference Rooms (various sizes)
     prisma.location.upsert({
       where: { id: 'location-1' },
-      update: {},
+      update: {
+        name: 'Executive Boardroom',
+        address: '123 Main St, Building A, Floor 5',
+        capacity: 16,
+        equipment: ['Video Conference', 'Smart Board', 'Premium Audio', '4K Display'],
+        type: 'Conference Room',
+      },
       create: {
         id: 'location-1',
-        name: 'Main Conference Room',
-        address: '123 Main St, New York, NY',
-        capacity: 50,
-        equipment: ['Projector', 'Whiteboard', 'Video Conference'],
-        type: 'physical',
+        name: 'Executive Boardroom',
+        address: '123 Main St, Building A, Floor 5',
+        capacity: 16,
+        equipment: ['Video Conference', 'Smart Board', 'Premium Audio', '4K Display'],
+        type: 'Conference Room',
       },
     }),
     prisma.location.upsert({
@@ -142,10 +152,252 @@ async function main() {
       update: {},
       create: {
         id: 'location-2',
-        name: 'Zoom Virtual Room',
+        name: 'Conference Room A',
+        address: '123 Main St, Building C, Floor 3',
+        capacity: 30,
+        equipment: ['Video Conference', 'Smart Board', 'Projector', 'Microphones'],
+        type: 'Conference Room',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-3' },
+      update: {},
+      create: {
+        id: 'location-3',
+        name: 'Conference Room B',
+        address: '123 Main St, Building C, Floor 3',
+        capacity: 24,
+        equipment: ['Projector', 'Whiteboard', 'Video Conference'],
+        type: 'Conference Room',
+      },
+    }),
+    // Auditoriums (large capacity)
+    prisma.location.upsert({
+      where: { id: 'location-4' },
+      update: {},
+      create: {
+        id: 'location-4',
+        name: 'Main Auditorium',
+        address: '123 Main St, Building C, Floor 1',
+        capacity: 200,
+        equipment: ['Stage', 'Projector', 'Sound System', 'Lighting', 'Recording Equipment'],
+        type: 'Auditorium',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-5' },
+      update: {},
+      create: {
+        id: 'location-5',
+        name: 'Small Auditorium',
+        address: '123 Main St, Building B, Floor 2',
+        capacity: 80,
+        equipment: ['Projector', 'Sound System', 'Microphones'],
+        type: 'Auditorium',
+      },
+    }),
+    // Training Rooms (medium capacity)
+    prisma.location.upsert({
+      where: { id: 'location-6' },
+      update: {},
+      create: {
+        id: 'location-6',
+        name: 'Training Room A',
+        address: '123 Main St, Building A, Floor 2',
+        capacity: 20,
+        equipment: ['Projector', 'Whiteboard', 'Desks', 'Chairs'],
+        type: 'Training Room',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-7' },
+      update: {},
+      create: {
+        id: 'location-7',
+        name: 'Training Room B',
+        address: '123 Main St, Building A, Floor 2',
+        capacity: 25,
+        equipment: ['Smart Board', 'Video Conference', 'Desks', 'Chairs'],
+        type: 'Training Room',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-8' },
+      update: {},
+      create: {
+        id: 'location-8',
+        name: 'Training Room C',
+        address: '123 Main St, Building B, Floor 3',
+        capacity: 18,
+        equipment: ['Projector', 'Whiteboard', 'Desks'],
+        type: 'Training Room',
+      },
+    }),
+    // Workshop Spaces
+    prisma.location.upsert({
+      where: { id: 'location-9' },
+      update: {},
+      create: {
+        id: 'location-9',
+        name: 'Innovation Workshop',
+        address: '123 Main St, Building D, Floor 1',
+        capacity: 35,
+        equipment: ['Interactive Displays', 'Collaboration Tools', 'Video Conference', 'Whiteboards'],
+        type: 'Workshop Space',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-10' },
+      update: {},
+      create: {
+        id: 'location-10',
+        name: 'Collaboration Hub',
+        address: '123 Main St, Building B, Floor 2',
+        capacity: 40,
+        equipment: ['Multiple Whiteboards', 'Flexible Seating', 'Projector', 'Video Conference'],
+        type: 'Workshop Space',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-11' },
+      update: {},
+      create: {
+        id: 'location-11',
+        name: 'Factory Floor Training Area',
+        address: 'Manufacturing Plant, Bay 3',
+        capacity: 15,
+        equipment: ['Safety Equipment', 'Whiteboard', 'Mobile Chairs'],
+        type: 'Workshop Space',
+      },
+    }),
+    // Meeting Rooms (small capacity)
+    prisma.location.upsert({
+      where: { id: 'location-12' },
+      update: {},
+      create: {
+        id: 'location-12',
+        name: 'Meeting Room 1',
+        address: '123 Main St, Building A, Floor 3',
+        capacity: 8,
+        equipment: ['TV Monitor', 'Whiteboard', 'Conference Phone'],
+        type: 'Meeting Room',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-13' },
+      update: {},
+      create: {
+        id: 'location-13',
+        name: 'Meeting Room 2',
+        address: '123 Main St, Building A, Floor 4',
+        capacity: 6,
+        equipment: ['TV Monitor', 'Whiteboard'],
+        type: 'Meeting Room',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-14' },
+      update: {},
+      create: {
+        id: 'location-14',
+        name: 'Meeting Room 3',
+        address: '123 Main St, Building B, Floor 1',
+        capacity: 10,
+        equipment: ['TV Monitor', 'Whiteboard', 'Video Conference'],
+        type: 'Meeting Room',
+      },
+    }),
+    // Classrooms
+    prisma.location.upsert({
+      where: { id: 'location-15' },
+      update: {},
+      create: {
+        id: 'location-15',
+        name: 'Classroom A',
+        address: '123 Main St, Building B, Floor 1',
+        capacity: 30,
+        equipment: ['Projector', 'Whiteboard', 'Sound System', 'Desks', 'Chairs'],
+        type: 'Classroom',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-16' },
+      update: {},
+      create: {
+        id: 'location-16',
+        name: 'Classroom B',
+        address: '123 Main St, Building A, Floor 3',
+        capacity: 25,
+        equipment: ['Smart Board', 'Desks', 'Chairs'],
+        type: 'Classroom',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-17' },
+      update: {},
+      create: {
+        id: 'location-17',
+        name: 'Small Classroom',
+        address: '123 Main St, Building A, Floor 4',
+        capacity: 15,
+        equipment: ['Whiteboard', 'Desks', 'Chairs'],
+        type: 'Classroom',
+      },
+    }),
+    // Virtual Rooms (high capacity)
+    prisma.location.upsert({
+      where: { id: 'location-18' },
+      update: {},
+      create: {
+        id: 'location-18',
+        name: 'Zoom Virtual Room 1',
         capacity: 100,
-        equipment: ['Screen Share', 'Breakout Rooms'],
-        type: 'virtual',
+        equipment: ['Screen Share', 'Breakout Rooms', 'Recording'],
+        type: 'Virtual',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-19' },
+      update: {},
+      create: {
+        id: 'location-19',
+        name: 'Microsoft Teams Room 1',
+        capacity: 100,
+        equipment: ['Screen Share', 'Breakout Rooms', 'Recording', 'Live Captions'],
+        type: 'Virtual',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-20' },
+      update: {},
+      create: {
+        id: 'location-20',
+        name: 'Zoom Virtual Room 2',
+        capacity: 50,
+        equipment: ['Screen Share', 'Breakout Rooms', 'Recording'],
+        type: 'Virtual',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-21' },
+      update: {},
+      create: {
+        id: 'location-21',
+        name: 'Google Meet Room',
+        capacity: 75,
+        equipment: ['Screen Share', 'Recording', 'Live Q&A'],
+        type: 'Virtual',
+      },
+    }),
+    prisma.location.upsert({
+      where: { id: 'location-22' },
+      update: {},
+      create: {
+        id: 'location-22',
+        name: 'Webex Virtual Room',
+        capacity: 100,
+        equipment: ['Screen Share', 'Breakout Rooms', 'Recording', 'Polling'],
+        type: 'Virtual',
       },
     }),
   ]);

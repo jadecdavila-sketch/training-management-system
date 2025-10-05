@@ -218,3 +218,42 @@ export const remove = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, error: 'Failed to delete user' });
   }
 };
+
+export const getFacilitators = async (req: Request, res: Response) => {
+  try {
+    const facilitators = await prisma.user.findMany({
+      where: {
+        role: 'FACILITATOR',
+        facilitatorProfile: {
+          isNot: null,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        facilitatorProfile: {
+          select: {
+            qualifications: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Transform the data to flatten the structure
+    const facilitatorsData = facilitators.map(f => ({
+      id: f.id,
+      name: f.name,
+      email: f.email,
+      skills: f.facilitatorProfile?.qualifications || [],
+    }));
+
+    res.json({
+      success: true,
+      data: facilitatorsData,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to fetch facilitators' });
+  }
+};
