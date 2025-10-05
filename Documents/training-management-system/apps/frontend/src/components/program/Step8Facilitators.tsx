@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Users, Calendar, AlertCircle } from 'lucide-react';
 
 interface Session {
@@ -36,6 +37,14 @@ interface FacilitatorAssignment {
   facilitatorName: string;
   facilitatorEmail: string;
   skills: string[];
+  matchPercentage: number;
+}
+
+interface UnmatchedSession {
+  cohortId: string;
+  sessionId: string;
+  requiredSkills: string[];
+  reason: string;
 }
 
 interface FormData {
@@ -62,13 +71,10 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
     { name: 'Lisa Anderson', email: 'lisa.a@company.com', skills: ['Communication', 'Presentation', 'Facilitation'] },
   ];
 
-  // Generate round-robin assignments if not already done
-  const generateAssignments = () => {
-    if (formData.facilitatorAssignments && formData.facilitatorAssignments.length > 0) {
-      return formData.facilitatorAssignments;
-    }
-
+  // Generate round-robin assignments using useMemo to prevent infinite loops
+  const { assignments, unmatched } = useMemo(() => {
     const assignments: FacilitatorAssignment[] = [];
+    const unmatched: UnmatchedSession[] = [];
     let facilitatorIndex = 0;
 
     formData.cohortDetails.forEach(cohort => {
@@ -76,42 +82,57 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
         const session = formData.sessions.find(s => s.id === scheduledSession.sessionId);
 
         if (session?.requiresFacilitator) {
-          // Find facilitators with matching skills or assign round-robin
-          let facilitator = mockFacilitators[facilitatorIndex % mockFacilitators.length];
+          const requiredSkills = session.facilitatorSkills || [];
 
-          // Try to match skills if specified
-          if (session.facilitatorSkills && session.facilitatorSkills.length > 0) {
-            const matchingFacilitator = mockFacilitators.find(f =>
-              session.facilitatorSkills.some(skill => f.skills.includes(skill))
+          if (requiredSkills.length === 0) {
+            // No specific skills required, assign round-robin
+            const facilitator = mockFacilitators[facilitatorIndex % mockFacilitators.length];
+            assignments.push({
+              cohortId: cohort.id,
+              sessionId: scheduledSession.sessionId,
+              facilitatorName: facilitator.name,
+              facilitatorEmail: facilitator.email,
+              skills: facilitator.skills,
+              matchPercentage: 100
+            });
+            facilitatorIndex++;
+          } else {
+            // ONLY assign if there's a 100% skill match
+            const perfectMatch = mockFacilitators.find(f =>
+              requiredSkills.every(skill => f.skills.includes(skill))
             );
-            if (matchingFacilitator) {
-              facilitator = matchingFacilitator;
+
+            if (perfectMatch) {
+              assignments.push({
+                cohortId: cohort.id,
+                sessionId: scheduledSession.sessionId,
+                facilitatorName: perfectMatch.name,
+                facilitatorEmail: perfectMatch.email,
+                skills: perfectMatch.skills,
+                matchPercentage: 100
+              });
+            } else {
+              // No 100% match - add to unmatched
+              unmatched.push({
+                cohortId: cohort.id,
+                sessionId: scheduledSession.sessionId,
+                requiredSkills,
+                reason: 'No facilitators have all required skills'
+              });
             }
           }
-
-          assignments.push({
-            cohortId: cohort.id,
-            sessionId: scheduledSession.sessionId,
-            facilitatorName: facilitator.name,
-            facilitatorEmail: facilitator.email,
-            skills: facilitator.skills
-          });
-
-          facilitatorIndex++;
         }
       });
     });
 
-    updateFormData({ facilitatorAssignments: assignments });
-    return assignments;
-  };
+    return { assignments, unmatched };
+  }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions]);
 
-  const assignments = generateAssignments();
-
-  // Group assignments by cohort
+  // Group assignments and unmatched by cohort
   const assignmentsByCohort = formData.cohortDetails.map(cohort => ({
     cohort,
-    assignments: assignments.filter(a => a.cohortId === cohort.id)
+    assignments: assignments.filter(a => a.cohortId === cohort.id),
+    unmatched: unmatched.filter(u => u.cohortId === cohort.id)
   }));
 
   const formatTime12Hour = (time24: string): string => {
@@ -126,6 +147,11 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  // Calculate KPIs
+  const perfectMatches = assignments.filter(a => a.matchPercentage === 100).length;
+  const perfectMatchRate = assignments.length > 0 ? Math.round((perfectMatches / assignments.length) * 100) : 0;
+  const uniqueFacilitators = new Set(assignments.map(a => a.facilitatorEmail)).size;
+
   return (
     <div className="p-8 max-w-6xl">
       <div className="mb-8">
@@ -135,7 +161,27 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
         </p>
       </div>
 
-      {assignments.length === 0 ? (
+      {/* KPI Summary */}
+      {assignments.length > 0 && (
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Total Assignments</p>
+            <p className="text-3xl font-bold text-gray-900">{assignments.length}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Unique Facilitators</p>
+            <p className="text-3xl font-bold text-teal-600">{uniqueFacilitators}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Unmatched Sessions</p>
+            <p className={`text-3xl font-bold ${unmatched.length > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+              {unmatched.length}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {assignments.length === 0 && unmatched.length === 0 ? (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
@@ -147,7 +193,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
         </div>
       ) : (
         <div className="space-y-6">
-          {assignmentsByCohort.map(({ cohort, assignments: cohortAssignments }) => (
+          {assignmentsByCohort.map(({ cohort, assignments: cohortAssignments, unmatched: cohortUnmatched }) => (
             <div key={cohort.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               {/* Cohort Header */}
               <div className="bg-gray-50 border-b border-gray-200 p-4">
@@ -191,7 +237,12 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
                       return (
                         <tr key={idx} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">{session?.name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium text-gray-900">{session?.name}</div>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                100% Match
+                              </span>
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             {scheduledSession && (
@@ -224,33 +275,60 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
                         </tr>
                       );
                     })}
+                    {/* Unmatched sessions */}
+                    {cohortUnmatched.map((unmatchedSession, idx) => {
+                      const session = formData.sessions.find(s => s.id === unmatchedSession.sessionId);
+                      const scheduledSession = formData.scheduledSessions.find(
+                        s => s.sessionId === unmatchedSession.sessionId
+                      );
+
+                      return (
+                        <tr key={`unmatched-${idx}`} className="bg-red-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="text-sm font-medium text-gray-900">{session?.name}</div>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                No Match
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            {scheduledSession && (
+                              <div className="text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>
+                                    Week {scheduledSession.startWeek + 1}, {scheduledSession.startDay} {formatTime12Hour(scheduledSession.startTime)}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-red-700">No facilitator assigned</div>
+                            <div className="text-xs text-red-600">{unmatchedSession.reason}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-xs text-red-700 font-medium">Required skills:</div>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {unmatchedSession.requiredSkills.map((skill, skillIdx) => (
+                                <span
+                                  key={skillIdx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Summary Stats */}
-      {assignments.length > 0 && (
-        <div className="mt-6 bg-teal-50 border border-teal-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-teal-900">Total Assignments</p>
-              <p className="text-2xl font-bold text-teal-700">{assignments.length}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-teal-900">Unique Facilitators</p>
-              <p className="text-2xl font-bold text-teal-700">
-                {new Set(assignments.map(a => a.facilitatorEmail)).size}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-teal-900">Cohorts</p>
-              <p className="text-2xl font-bold text-teal-700">{formData.cohortDetails.length}</p>
-            </div>
-          </div>
         </div>
       )}
     </div>

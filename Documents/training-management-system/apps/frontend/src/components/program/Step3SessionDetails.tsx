@@ -37,7 +37,22 @@ interface Step3Props {
 }
 
 const PARTICIPANT_TYPES = ['New Hire', 'Manager', 'Sales Rep', 'Engineer', 'Remote Employee'];
-const FACILITATOR_SKILLS = ['Leadership Training', 'Technical Skills', 'Compliance', 'Safety', 'Sales'];
+// Facilitator skills from facilitator user profiles in the database
+const FACILITATOR_SKILLS = [
+  'Leadership',
+  'Communication',
+  'Strategy',
+  'Technical',
+  'Data Analysis',
+  'Problem Solving',
+  'Team Building',
+  'Conflict Resolution',
+  'Coaching',
+  'Project Management',
+  'Agile',
+  'Presentation',
+  'Facilitation'
+];
 const LOCATION_TYPES = ['Classroom', 'Virtual', 'On-site', 'Hybrid'];
 
 export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }: Step3Props) {

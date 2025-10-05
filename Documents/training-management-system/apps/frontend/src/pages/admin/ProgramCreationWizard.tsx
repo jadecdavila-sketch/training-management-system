@@ -128,7 +128,7 @@ export const ProgramCreationWizard = () => {
       case 6:
         return formData.numberOfCohorts > 0;
       case 7:
-        return formData.cohortDetails.every(c => c.name && c.startDate);
+        return true;
       default:
         return true;
     }

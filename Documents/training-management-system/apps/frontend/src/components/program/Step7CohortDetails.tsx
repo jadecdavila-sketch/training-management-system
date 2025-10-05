@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Calendar, Filter } from 'lucide-react';
 
 interface CohortDetail {
@@ -44,34 +44,23 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
     new Set(formData.cohortDetails.length > 0 ? [formData.cohortDetails[0].id] : [])
   );
 
-  // Initialize cohort details if not already present
-  const initializeCohorts = () => {
-    if (formData.cohortDetails.length !== formData.numberOfCohorts) {
+  // Initialize on mount
+  useEffect(() => {
+    if (formData.cohortDetails.length === 0) {
       const newCohorts: CohortDetail[] = [];
       for (let i = 0; i < formData.numberOfCohorts; i++) {
-        const existing = formData.cohortDetails[i];
-        if (existing) {
-          newCohorts.push(existing);
-        } else {
-          newCohorts.push({
-            id: `cohort-${i + 1}`,
-            name: `Cohort ${i + 1}`,
-            startDate: '',
-            participantFilters: {}
-          });
-        }
+        newCohorts.push({
+          id: `cohort-${i + 1}`,
+          name: `Cohort ${i + 1}`,
+          startDate: '',
+          participantFilters: {}
+        });
       }
       updateFormData({ cohortDetails: newCohorts });
-      if (newCohorts.length > 0) {
-        setExpandedCohorts(new Set([newCohorts[0].id]));
-      }
+      setExpandedCohorts(new Set([newCohorts[0]?.id].filter(Boolean)));
     }
-  };
-
-  // Initialize on mount
-  useState(() => {
-    initializeCohorts();
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleCohort = (cohortId: string) => {
     const newExpanded = new Set(expandedCohorts);
@@ -201,131 +190,35 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
                       <h4 className="text-sm font-semibold text-gray-900">Participant Filters (Optional)</h4>
                     </div>
                     <p className="text-sm text-gray-600 mb-4">
-                      Define criteria to automatically assign participants to this cohort based on employee data.
+                      Define criteria to automatically assign participants to this cohort based on their employee start date.
                     </p>
 
-                    <div className="space-y-4">
-                      {/* Employee Start Date Range */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Employee Start Date Range
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">From</label>
-                            <input
-                              type="date"
-                              value={cohort.participantFilters.employeeStartDateFrom || ''}
-                              onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateFrom', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-600 mb-1">To</label>
-                            <input
-                              type="date"
-                              value={cohort.participantFilters.employeeStartDateTo || ''}
-                              onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateTo', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                            />
-                          </div>
+                    {/* Employee Start Date Range */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Employee Start Date Range
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">From</label>
+                          <input
+                            type="date"
+                            value={cohort.participantFilters.employeeStartDateFrom || ''}
+                            onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateFrom', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                          />
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Include employees who started between these dates</p>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">To</label>
+                          <input
+                            type="date"
+                            value={cohort.participantFilters.employeeStartDateTo || ''}
+                            onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateTo', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+                          />
+                        </div>
                       </div>
-
-                      {/* Regions */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Regions
-                        </label>
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value && !(cohort.participantFilters.regions?.includes(e.target.value))) {
-                              const currentRegions = cohort.participantFilters.regions || [];
-                              updateCohortFilter(cohort.id, 'regions', [...currentRegions, e.target.value]);
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm mb-2"
-                        >
-                          <option value="">Select regions</option>
-                          {availableRegions.filter(r => !(cohort.participantFilters.regions?.includes(r))).map(region => (
-                            <option key={region} value={region}>{region}</option>
-                          ))}
-                        </select>
-                        {cohort.participantFilters.regions && cohort.participantFilters.regions.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {cohort.participantFilters.regions.map(region => (
-                              <span
-                                key={region}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full"
-                              >
-                                {region}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updatedRegions = cohort.participantFilters.regions?.filter(r => r !== region) || [];
-                                    updateCohortFilter(cohort.id, 'regions', updatedRegions);
-                                  }}
-                                  className="hover:text-teal-900"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Departments */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Departments
-                        </label>
-                        <select
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value && !(cohort.participantFilters.departments?.includes(e.target.value))) {
-                              const currentDepts = cohort.participantFilters.departments || [];
-                              updateCohortFilter(cohort.id, 'departments', [...currentDepts, e.target.value]);
-                            }
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm mb-2"
-                        >
-                          <option value="">Select departments</option>
-                          {availableDepartments.filter(d => !(cohort.participantFilters.departments?.includes(d))).map(dept => (
-                            <option key={dept} value={dept}>{dept}</option>
-                          ))}
-                        </select>
-                        {cohort.participantFilters.departments && cohort.participantFilters.departments.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {cohort.participantFilters.departments.map(dept => (
-                              <span
-                                key={dept}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full"
-                              >
-                                {dept}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updatedDepts = cohort.participantFilters.departments?.filter(d => d !== dept) || [];
-                                    updateCohortFilter(cohort.id, 'departments', updatedDepts);
-                                  }}
-                                  className="hover:text-teal-900"
-                                >
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Include employees who started between these dates</p>
                     </div>
                   </div>
                 </div>
