@@ -6,6 +6,10 @@ import { Step3SessionDetails } from '@/components/program/Step3SessionDetails';
 import { Step4SessionCadence } from '@/components/program/Step4SessionCadence';
 import { Step5ProgramStructure } from '@/components/program/Step5ProgramStructure';
 import { Step6CohortsBlackout } from '@/components/program/Step6CohortsBlackout';
+import { Step7CohortDetails } from '@/components/program/Step7CohortDetails';
+import { Step8Facilitators } from '@/components/program/Step8Facilitators';
+import { Step9Locations } from '@/components/program/Step9Locations';
+import { Step10ProgramSummary } from '@/components/program/Step10ProgramSummary';
 
 interface ProgramFormData {
   programName: string;
@@ -51,6 +55,33 @@ interface ProgramFormData {
     endDate: string;
     description: string;
   }>;
+  cohortDetails: Array<{
+    id: string;
+    name: string;
+    startDate: string;
+    participantFilters: {
+      employeeStartDateFrom?: string;
+      employeeStartDateTo?: string;
+      regions?: string[];
+      departments?: string[];
+    };
+  }>;
+  facilitatorAssignments?: Array<{
+    cohortId: string;
+    sessionId: string;
+    facilitatorName: string;
+    facilitatorEmail: string;
+    skills: string[];
+  }>;
+  locationAssignments?: Array<{
+    cohortId: string;
+    sessionId: string;
+    locationName: string;
+    locationType: string;
+    capacity: number;
+    building?: string;
+    floor?: string;
+  }>;
 }
 
 const TOTAL_STEPS = 10;
@@ -72,6 +103,7 @@ export const ProgramCreationWizard = () => {
     scheduledSessions: [],
     numberOfCohorts: 2,
     blackoutPeriods: [],
+    cohortDetails: [],
   });
 
   const updateFormData = (updates: Partial<ProgramFormData>) => {
@@ -95,6 +127,8 @@ export const ProgramCreationWizard = () => {
         return true; // Review step, always valid
       case 6:
         return formData.numberOfCohorts > 0;
+      case 7:
+        return formData.cohortDetails.every(c => c.name && c.startDate);
       default:
         return true;
     }
@@ -205,6 +239,42 @@ export const ProgramCreationWizard = () => {
       case 6:
         return (
           <Step6CohortsBlackout
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 7:
+        return (
+          <Step7CohortDetails
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 8:
+        return (
+          <Step8Facilitators
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 9:
+        return (
+          <Step9Locations
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={goToNextStep}
+            onBack={goToPreviousStep}
+          />
+        );
+      case 10:
+        return (
+          <Step10ProgramSummary
             formData={formData}
             updateFormData={updateFormData}
             onNext={goToNextStep}
