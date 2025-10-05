@@ -239,20 +239,45 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
                           Regions
                         </label>
                         <select
-                          multiple
-                          value={cohort.participantFilters.regions || []}
+                          value=""
                           onChange={(e) => {
-                            const selected = Array.from(e.target.selectedOptions, option => option.value);
-                            updateCohortFilter(cohort.id, 'regions', selected);
+                            if (e.target.value && !(cohort.participantFilters.regions?.includes(e.target.value))) {
+                              const currentRegions = cohort.participantFilters.regions || [];
+                              updateCohortFilter(cohort.id, 'regions', [...currentRegions, e.target.value]);
+                            }
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                          size={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm mb-2"
                         >
-                          {availableRegions.map(region => (
+                          <option value="">Select regions</option>
+                          {availableRegions.filter(r => !(cohort.participantFilters.regions?.includes(r))).map(region => (
                             <option key={region} value={region}>{region}</option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
+                        {cohort.participantFilters.regions && cohort.participantFilters.regions.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {cohort.participantFilters.regions.map(region => (
+                              <span
+                                key={region}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full"
+                              >
+                                {region}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updatedRegions = cohort.participantFilters.regions?.filter(r => r !== region) || [];
+                                    updateCohortFilter(cohort.id, 'regions', updatedRegions);
+                                  }}
+                                  className="hover:text-teal-900"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Departments */}
@@ -261,20 +286,45 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
                           Departments
                         </label>
                         <select
-                          multiple
-                          value={cohort.participantFilters.departments || []}
+                          value=""
                           onChange={(e) => {
-                            const selected = Array.from(e.target.selectedOptions, option => option.value);
-                            updateCohortFilter(cohort.id, 'departments', selected);
+                            if (e.target.value && !(cohort.participantFilters.departments?.includes(e.target.value))) {
+                              const currentDepts = cohort.participantFilters.departments || [];
+                              updateCohortFilter(cohort.id, 'departments', [...currentDepts, e.target.value]);
+                            }
                           }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                          size={4}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm mb-2"
                         >
-                          {availableDepartments.map(dept => (
+                          <option value="">Select departments</option>
+                          {availableDepartments.filter(d => !(cohort.participantFilters.departments?.includes(d))).map(dept => (
                             <option key={dept} value={dept}>{dept}</option>
                           ))}
                         </select>
-                        <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
+                        {cohort.participantFilters.departments && cohort.participantFilters.departments.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {cohort.participantFilters.departments.map(dept => (
+                              <span
+                                key={dept}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded-full"
+                              >
+                                {dept}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updatedDepts = cohort.participantFilters.departments?.filter(d => d !== dept) || [];
+                                    updateCohortFilter(cohort.id, 'departments', updatedDepts);
+                                  }}
+                                  className="hover:text-teal-900"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
