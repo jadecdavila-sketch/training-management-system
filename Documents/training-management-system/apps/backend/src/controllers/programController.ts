@@ -14,7 +14,17 @@ export const getAll = async (req: Request, res: Response) => {
         include: {
           cohorts: {
             include: {
-              schedules: true,
+              schedules: {
+                include: {
+                  session: true,
+                  facilitator: {
+                    include: {
+                      user: true,
+                    },
+                  },
+                  location: true,
+                },
+              },
             },
           },
           sessions: true,
@@ -50,6 +60,17 @@ export const getById = async (req: Request, res: Response) => {
             schedules: {
               include: {
                 session: true,
+                facilitator: {
+                  include: {
+                    user: true,
+                  },
+                },
+                location: true,
+              },
+            },
+            participants: {
+              include: {
+                participant: true,
               },
             },
           },
@@ -60,6 +81,11 @@ export const getById = async (req: Request, res: Response) => {
 
     if (!program) {
       return res.status(404).json({ success: false, error: 'Program not found' });
+    }
+
+    // Log schedules with their facilitator/location info for debugging
+    if (program.cohorts && program.cohorts.length > 0 && program.cohorts[0].schedules) {
+      console.log('Sample schedule data being returned:', JSON.stringify(program.cohorts[0].schedules[0], null, 2));
     }
 
     res.json({ success: true, data: program });
@@ -169,30 +195,89 @@ export const create = async (req: Request, res: Response) => {
     const createdSessions = program.sessions;
     const createdCohorts = program.cohorts;
 
+    // Create a mapping from original cohort IDs to created cohort database IDs
+    const cohortIdMap = new Map();
+    cohortDetails.forEach((originalCohort: any, index: number) => {
+      cohortIdMap.set(originalCohort.id, createdCohorts[index].id);
+    });
+
+    console.log('Cohort ID mapping:', Array.from(cohortIdMap.entries()));
+    console.log('Facilitator assignments:', facilitatorAssignments);
+    console.log('Location assignments:', locationAssignments);
+
     for (const cohort of createdCohorts) {
+      const originalCohortId = Array.from(cohortIdMap.entries()).find(([_, dbId]) => dbId === cohort.id)?.[0];
+
       for (const scheduledSession of scheduledSessions) {
-        const session = createdSessions.find((s) => s.name === scheduledSession.sessionName);
-        if (!session) continue;
+        const session = createdSessions.find((s) => s.title === scheduledSession.sessionName);
+        if (!session) {
+          console.warn('Could not find session:', scheduledSession.sessionName, 'Available sessions:', createdSessions.map(s => s.title));
+          continue;
+        }
 
         const facilitatorAssignment = facilitatorAssignments?.find(
-          (fa: any) => fa.cohortId === cohort.name && fa.sessionId === scheduledSession.sessionId
+          (fa: any) => fa.cohortId === originalCohortId && fa.sessionId === scheduledSession.sessionId
         );
 
         const locationAssignment = locationAssignments?.find(
-          (la: any) => la.cohortId === cohort.name && la.sessionId === scheduledSession.sessionId
+          (la: any) => la.cohortId === originalCohortId && la.sessionId === scheduledSession.sessionId
         );
 
-        await prisma.schedule.create({
+        console.log(`Session ${scheduledSession.sessionName} for cohort ${cohort.name}:`, {
+          facilitatorAssignment,
+          locationAssignment
+        });
+
+        // Find facilitator if assigned (only lookup, don't create)
+        let facilitatorId: string | undefined;
+        if (facilitatorAssignment?.facilitatorEmail) {
+          const existingFacilitator = await prisma.facilitator.findFirst({
+            where: {
+              user: {
+                email: facilitatorAssignment.facilitatorEmail
+              }
+            }
+          });
+
+          if (existingFacilitator) {
+            facilitatorId = existingFacilitator.id;
+          } else {
+            console.warn(`Facilitator not found for email: ${facilitatorAssignment.facilitatorEmail}`);
+          }
+        }
+
+        // Find location if assigned (only lookup, don't create)
+        let locationId: string | undefined;
+        if (locationAssignment?.locationName) {
+          const existingLocation = await prisma.location.findFirst({
+            where: {
+              name: locationAssignment.locationName
+            }
+          });
+
+          if (existingLocation) {
+            locationId = existingLocation.id;
+          } else {
+            console.warn(`Location not found: ${locationAssignment.locationName}`);
+          }
+        }
+
+        const createdSchedule = await prisma.schedule.create({
           data: {
             cohortId: cohort.id,
             sessionId: session.id,
             startTime: new Date(scheduledSession.startTime),
             endTime: new Date(scheduledSession.endTime),
-            facilitatorName: facilitatorAssignment?.facilitatorName,
-            facilitatorEmail: facilitatorAssignment?.facilitatorEmail,
-            locationName: locationAssignment?.locationName,
-            locationType: locationAssignment?.locationType,
+            facilitatorId,
+            locationId,
           },
+        });
+
+        console.log(`Created schedule for ${scheduledSession.sessionName}:`, {
+          facilitatorId,
+          locationId,
+          savedFacilitatorId: createdSchedule.facilitatorId,
+          savedLocationId: createdSchedule.locationId
         });
       }
     }
@@ -217,16 +302,16 @@ export const create = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { programName, region, description, email } = req.body;
+    const { programName, description, formData } = req.body;
+
+    const updateData: any = {};
+    if (programName) updateData.name = programName;
+    if (description !== undefined) updateData.description = description;
+    if (formData) updateData.formData = formData;
 
     const program = await prisma.program.update({
       where: { id },
-      data: {
-        name: programName,
-        region,
-        description,
-        contactEmail: email,
-      },
+      data: updateData,
       include: {
         sessions: true,
         cohorts: true,
@@ -239,7 +324,16 @@ export const update = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'Program not found' });
     }
     console.error('Failed to update program:', error);
-    res.status(500).json({ success: false, error: 'Failed to update program' });
+    console.error('Update error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update program',
+      details: error.message
+    });
   }
 };
 
