@@ -57,6 +57,7 @@ export const LocationsPage = () => {
       'Workshop Space': 'bg-pink-100 text-pink-700',
       'Meeting Room': 'bg-warning-100 text-warning-700',
       'Classroom': 'bg-amber-100 text-amber-700',
+      'Virtual': 'bg-blue-100 text-blue-700',
     };
     return colors[type] || 'bg-secondary-100 text-secondary-700';
   };
@@ -117,7 +118,7 @@ export const LocationsPage = () => {
                   Clear All
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px bg-secondary-200 my-1" />
-                {['physical', 'virtual'].map((type) => (
+                {['Conference Room', 'Auditorium', 'Training Room', 'Workshop Space', 'Meeting Room', 'Classroom', 'Virtual'].map((type) => (
                   <DropdownMenu.CheckboxItem
                     key={type}
                     className="px-3 py-2 text-sm text-secondary-700 hover:bg-secondary-100 rounded cursor-pointer outline-none flex items-center gap-2"
@@ -132,7 +133,7 @@ export const LocationsPage = () => {
                         </svg>
                       )}
                     </div>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type}
                   </DropdownMenu.CheckboxItem>
                 ))}
               </DropdownMenu.Content>

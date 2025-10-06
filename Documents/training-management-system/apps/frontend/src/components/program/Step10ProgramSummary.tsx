@@ -1,4 +1,8 @@
+import { useState } from 'react';
 import { CheckCircle2, Calendar, Users, BookOpen } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { programsApi } from '@/services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface ProgramFormData {
   programName: string;
@@ -63,6 +67,96 @@ interface Step10Props {
 }
 
 export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const createProgramMutation = useMutation({
+    mutationFn: programsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+      navigate('/admin/programs');
+    },
+    onError: (error: any) => {
+      console.error('Full error:', error);
+      const errorMessage = error.response?.data?.details || error.message || 'Unknown error';
+      alert(`Failed to create program: ${errorMessage}`);
+      setIsSaving(false); // Reset saving state on error
+    },
+  });
+
+  const handleCreateProgram = () => {
+    setIsSaving(true);
+
+    // Transform scheduledSessions from relative (week/day/time) to absolute timestamps
+    // Use the first cohort's start date as the base
+    const baseStartDate = formData.cohortDetails[0]?.startDate
+      ? new Date(formData.cohortDetails[0].startDate)
+      : new Date();
+
+    const transformedScheduledSessions = formData.scheduledSessions.map(session => {
+      // Convert day name to day index (Mon=0, Tue=1, etc.)
+      const dayMap: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+      const startDayIndex = dayMap[session.startDay] ?? 0;
+      const endDayIndex = dayMap[session.endDay] ?? 0;
+
+      // Calculate start timestamp: base date + (startWeek * 7 days) + startDayIndex
+      const startDate = new Date(baseStartDate);
+      startDate.setDate(startDate.getDate() + (session.startWeek * 7) + startDayIndex);
+
+      // Parse time (e.g., "09:00") and set it
+      const [startHours, startMinutes] = session.startTime.split(':').map(Number);
+      startDate.setHours(startHours, startMinutes, 0, 0);
+
+      // Calculate end timestamp
+      const endDate = new Date(baseStartDate);
+      endDate.setDate(endDate.getDate() + (session.endWeek * 7) + endDayIndex);
+      const [endHours, endMinutes] = session.endTime.split(':').map(Number);
+      endDate.setHours(endHours, endMinutes, 0, 0);
+
+      // Find the session name from the sessions list
+      const sessionDetail = formData.sessions.find(s => s.id === session.sessionId);
+
+      return {
+        sessionId: session.sessionId,
+        sessionName: sessionDetail?.name || '',
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString()
+      };
+    });
+
+    // Also calculate endDate for each cohort based on the last scheduled session
+    const cohortsWithEndDates = formData.cohortDetails.map(cohort => {
+      const cohortStartDate = new Date(cohort.startDate);
+
+      // Find the latest scheduled session end time
+      let latestEndDate = new Date(cohortStartDate);
+      if (transformedScheduledSessions.length > 0) {
+        const lastSession = transformedScheduledSessions[transformedScheduledSessions.length - 1];
+        latestEndDate = new Date(lastSession.endTime);
+      } else {
+        // Default to 12 weeks after start
+        latestEndDate.setDate(latestEndDate.getDate() + (12 * 7));
+      }
+
+      return {
+        ...cohort,
+        startDate: cohort.startDate,
+        endDate: latestEndDate.toISOString()
+      };
+    });
+
+    const transformedData = {
+      ...formData,
+      scheduledSessions: transformedScheduledSessions,
+      cohortDetails: cohortsWithEndDates,
+      // Store original formData for editing (before transformation)
+      originalFormData: formData
+    };
+
+    createProgramMutation.mutate(transformedData);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -87,22 +181,18 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
       </div>
 
       {/* KPI Summary */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-sm text-gray-600 mb-1">Total Sessions</p>
           <p className="text-3xl font-bold text-gray-900">{formData.sessions.length}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600 mb-1">Scheduled</p>
-          <p className="text-3xl font-bold text-teal-600">{formData.scheduledSessions.length}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-sm text-gray-600 mb-1">Cohorts</p>
-          <p className="text-3xl font-bold text-gray-900">{formData.numberOfCohorts}</p>
+          <p className="text-3xl font-bold text-teal-600">{formData.numberOfCohorts}</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <p className="text-sm text-gray-600 mb-1">Duration (Weeks)</p>
-          <p className="text-3xl font-bold text-teal-600">{totalDuration}</p>
+          <p className="text-3xl font-bold text-gray-900">{totalDuration}</p>
         </div>
       </div>
 
@@ -244,13 +334,11 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
               </p>
             </div>
             <button
-              onClick={() => {
-                // This would typically save to the backend
-                alert('Program created successfully!');
-              }}
-              className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
+              onClick={handleCreateProgram}
+              disabled={isSaving || createProgramMutation.isPending}
+              className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Program
+              {isSaving || createProgramMutation.isPending ? 'Creating...' : 'Create Program'}
             </button>
           </div>
         </div>

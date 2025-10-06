@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { programsApi } from '@/services/api';
 import { Step1ProgramDetails } from '@/components/program/Step1ProgramDetails';
 import { Step2TrainingSessions } from '@/components/program/Step2TrainingSessions';
 import { Step3SessionDetails } from '@/components/program/Step3SessionDetails';
@@ -88,6 +90,9 @@ const TOTAL_STEPS = 10;
 
 export const ProgramCreationWizard = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = !!id;
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<ProgramFormData>({
     programName: '',
@@ -105,6 +110,42 @@ export const ProgramCreationWizard = () => {
     blackoutPeriods: [],
     cohortDetails: [],
   });
+
+  // Fetch program data if in edit mode
+  const { data: programData, isLoading } = useQuery({
+    queryKey: ['program', id],
+    queryFn: () => programsApi.getById(id!),
+    enabled: isEditMode,
+  });
+
+  // Populate form data when program data is loaded
+  useEffect(() => {
+    if (programData?.data) {
+      const program = programData.data;
+      // If we have the original formData stored, use it directly
+      if (program.formData) {
+        setFormData(program.formData as ProgramFormData);
+      } else {
+        // Fallback: only populate basic fields if formData wasn't stored
+        setFormData(prev => ({
+          ...prev,
+          programName: program.name || '',
+          region: program.region || '',
+          description: program.description || '',
+        }));
+      }
+    }
+  }, [programData]);
+
+  if (isEditMode && isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Loading program...</p>
+        </div>
+      </div>
+    );
+  }
 
   const updateFormData = (updates: Partial<ProgramFormData>) => {
     setFormData(prev => ({ ...prev, ...updates }));

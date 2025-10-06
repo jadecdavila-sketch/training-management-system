@@ -31,6 +31,7 @@ function App() {
               <Route path="programs" element={<ProgramsPage />} />
               <Route path="design-system" element={<DesignSystemPage />} />
               <Route path="programs/new" element={<ProgramCreationWizard />} />
+              <Route path="programs/edit/:id" element={<ProgramCreationWizard />} />
             </Route>
           </Route>
         </Routes>

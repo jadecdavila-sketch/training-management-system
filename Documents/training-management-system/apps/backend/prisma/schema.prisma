@@ -81,6 +81,8 @@ model Program {
   description String?
   duration    Int
   objectives  String[]
+  formData    Json?    // Store original wizard form data for editing
+  archived    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

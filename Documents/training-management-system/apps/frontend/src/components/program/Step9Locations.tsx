@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { MapPin, Calendar, AlertCircle } from 'lucide-react';
+import { locationsApi } from '@/services/api';
 
 interface Session {
   id: string;
@@ -64,21 +65,46 @@ interface Step9Props {
 }
 
 export function Step9Locations({ formData, updateFormData, onNext, onBack }: Step9Props) {
-  // Mock location pool for demonstration
-  const mockLocations = [
-    { name: 'Conference Room A', type: 'Conference Room', capacity: 12, building: 'Main', floor: '3' },
-    { name: 'Training Center 1', type: 'Training Room', capacity: 20, building: 'East', floor: '2' },
-    { name: 'Board Room', type: 'Conference Room', capacity: 16, building: 'Main', floor: '5' },
-    { name: 'Workshop Space', type: 'Workshop', capacity: 30, building: 'West', floor: '1' },
-    { name: 'Virtual Meeting Room 1', type: 'Virtual', capacity: 100 },
-    { name: 'Collaboration Hub', type: 'Open Space', capacity: 25, building: 'North', floor: '2' },
-    { name: 'Executive Suite', type: 'Conference Room', capacity: 8, building: 'Main', floor: '6' },
-  ];
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string; capacity: number; address?: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch locations from the database
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLoading(true);
+        const response = await locationsApi.getAll({ pageSize: 1000 }); // Get all locations
+        // Transform the data to match the expected format
+        const locationsData = response.data.map(loc => ({
+          id: loc.id,
+          name: loc.name,
+          type: loc.type,
+          capacity: loc.capacity,
+          address: loc.address
+        }));
+        setLocations(locationsData);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch locations:', err);
+        setError('Failed to load locations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
 
   // Generate location assignments using useMemo to prevent infinite loops
   const { assignments, unmatched } = useMemo(() => {
     const assignments: LocationAssignment[] = [];
     const unmatched: UnmatchedSession[] = [];
+
+    // Don't generate assignments if locations haven't loaded yet
+    if (locations.length === 0) {
+      return { assignments, unmatched };
+    }
 
     formData.cohortDetails.forEach(cohort => {
       formData.scheduledSessions.forEach(scheduledSession => {
@@ -93,12 +119,12 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
 
           if (requiredTypes.length > 0) {
             // Find location with matching type AND adequate capacity
-            matchingLocation = mockLocations.find(l =>
+            matchingLocation = locations.find(l =>
               requiredTypes.includes(l.type) && l.capacity >= requiredCapacity
             );
           } else {
             // No type required, just find adequate capacity
-            matchingLocation = mockLocations.find(l => l.capacity >= requiredCapacity);
+            matchingLocation = locations.find(l => l.capacity >= requiredCapacity);
           }
 
           if (matchingLocation) {
@@ -108,8 +134,8 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
               locationName: matchingLocation.name,
               locationType: matchingLocation.type,
               capacity: matchingLocation.capacity,
-              building: matchingLocation.building,
-              floor: matchingLocation.floor
+              building: matchingLocation.address,
+              floor: undefined
             });
           } else {
             // No matching location found
@@ -128,7 +154,7 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
     });
 
     return { assignments, unmatched };
-  }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions]);
+  }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions, locations]);
 
   // Group assignments and unmatched by cohort
   const assignmentsByCohort = formData.cohortDetails.map(cohort => ({
@@ -152,6 +178,37 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">Location Assignments</h1>
+          <p className="text-gray-600 mt-1">Loading locations from database...</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">Location Assignments</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-red-900">Failed to load locations</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl">

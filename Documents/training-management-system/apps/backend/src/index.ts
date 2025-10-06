@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import participantRoutes from './routes/participants.js';
 import userRoutes from './routes/users.js';
 import locationRoutes from './routes/locations.js';
+import programRoutes from './routes/programs.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/api/participants', participantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/programs', programRoutes);
 
 // Health check
 app.get('/health', (_, res) => {

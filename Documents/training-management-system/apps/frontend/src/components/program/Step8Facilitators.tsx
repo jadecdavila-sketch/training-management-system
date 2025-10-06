@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Users, Calendar, AlertCircle } from 'lucide-react';
+import { usersApi } from '@/services/api';
 
 interface Session {
   id: string;
@@ -62,20 +63,39 @@ interface Step8Props {
 }
 
 export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: Step8Props) {
-  // Mock facilitator pool for demonstration
-  const mockFacilitators = [
-    { name: 'Sarah Johnson', email: 'sarah.j@company.com', skills: ['Leadership', 'Communication', 'Strategy'] },
-    { name: 'Michael Chen', email: 'michael.c@company.com', skills: ['Technical', 'Data Analysis', 'Problem Solving'] },
-    { name: 'Emily Rodriguez', email: 'emily.r@company.com', skills: ['Team Building', 'Conflict Resolution', 'Coaching'] },
-    { name: 'James Wilson', email: 'james.w@company.com', skills: ['Project Management', 'Agile', 'Leadership'] },
-    { name: 'Lisa Anderson', email: 'lisa.a@company.com', skills: ['Communication', 'Presentation', 'Facilitation'] },
-  ];
+  const [facilitators, setFacilitators] = useState<Array<{ id: string; name: string; email: string; skills: string[] }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch facilitators from the database
+  useEffect(() => {
+    const fetchFacilitators = async () => {
+      try {
+        setLoading(true);
+        const response = await usersApi.getFacilitators();
+        setFacilitators(response.data);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to fetch facilitators:', err);
+        setError('Failed to load facilitators');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFacilitators();
+  }, []);
 
   // Generate round-robin assignments using useMemo to prevent infinite loops
   const { assignments, unmatched } = useMemo(() => {
     const assignments: FacilitatorAssignment[] = [];
     const unmatched: UnmatchedSession[] = [];
     let facilitatorIndex = 0;
+
+    // Don't generate assignments if facilitators haven't loaded yet
+    if (facilitators.length === 0) {
+      return { assignments, unmatched };
+    }
 
     formData.cohortDetails.forEach(cohort => {
       formData.scheduledSessions.forEach(scheduledSession => {
@@ -86,7 +106,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
 
           if (requiredSkills.length === 0) {
             // No specific skills required, assign round-robin
-            const facilitator = mockFacilitators[facilitatorIndex % mockFacilitators.length];
+            const facilitator = facilitators[facilitatorIndex % facilitators.length];
             assignments.push({
               cohortId: cohort.id,
               sessionId: scheduledSession.sessionId,
@@ -98,7 +118,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
             facilitatorIndex++;
           } else {
             // ONLY assign if there's a 100% skill match
-            const perfectMatch = mockFacilitators.find(f =>
+            const perfectMatch = facilitators.find(f =>
               requiredSkills.every(skill => f.skills.includes(skill))
             );
 
@@ -126,7 +146,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
     });
 
     return { assignments, unmatched };
-  }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions]);
+  }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions, facilitators]);
 
   // Group assignments and unmatched by cohort
   const assignmentsByCohort = formData.cohortDetails.map(cohort => ({
@@ -151,6 +171,37 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
   const perfectMatches = assignments.filter(a => a.matchPercentage === 100).length;
   const perfectMatchRate = assignments.length > 0 ? Math.round((perfectMatches / assignments.length) * 100) : 0;
   const uniqueFacilitators = new Set(assignments.map(a => a.facilitatorEmail)).size;
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">Facilitator Assignments</h1>
+          <p className="text-gray-600 mt-1">Loading facilitators from database...</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900">Facilitator Assignments</h1>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-red-900">Failed to load facilitators</p>
+            <p className="text-sm text-red-700 mt-1">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-6xl">

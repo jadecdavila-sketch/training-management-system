@@ -29,6 +29,7 @@ const LOCATION_TYPES = [
   'Workshop Space',
   'Meeting Room',
   'Classroom',
+  'Virtual',
 ];
 
 const OFFICE_LOCATIONS = [

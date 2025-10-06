@@ -102,7 +102,7 @@ export const usersApi = {
     if (params?.page) query.append('page', params.page.toString());
     if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
     if (params?.role) query.append('role', params.role);
-    
+
     return fetchApi<PaginatedResponse<User>>(`/users?${query}`);
   },
 
@@ -123,4 +123,41 @@ export const usersApi = {
 
   delete: (id: string) =>
     fetchApi<{ success: boolean }>(`/users/${id}`, { method: 'DELETE' }),
+
+  getFacilitators: () =>
+    fetchApi<{ success: boolean; data: Array<{ id: string; name: string; email: string; skills: string[] }> }>('/users/facilitators/list'),
+};
+
+// Programs API
+export const programsApi = {
+  getAll: (params?: { page?: number; pageSize?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.pageSize) query.append('pageSize', params.pageSize.toString());
+
+    return fetchApi<PaginatedResponse<any>>(`/programs?${query}`);
+  },
+
+  getById: (id: string) =>
+    fetchApi<{ success: boolean; data: any }>(`/programs/${id}`),
+
+  create: (data: any) =>
+    fetchApi<{ success: boolean; data: any }>('/programs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: any) =>
+    fetchApi<{ success: boolean; data: any }>(`/programs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  archive: (id: string) =>
+    fetchApi<{ success: boolean; data: any }>(`/programs/${id}/archive`, {
+      method: 'PATCH',
+    }),
+
+  delete: (id: string) =>
+    fetchApi<{ success: boolean }>(`/programs/${id}`, { method: 'DELETE' }),
 };

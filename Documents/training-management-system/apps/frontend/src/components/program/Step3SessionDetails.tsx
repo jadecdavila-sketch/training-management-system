@@ -37,23 +37,25 @@ interface Step3Props {
 }
 
 const PARTICIPANT_TYPES = ['New Hire', 'Manager', 'Sales Rep', 'Engineer', 'Remote Employee'];
-// Facilitator skills from facilitator user profiles in the database
+// Facilitator skills - must match exactly with skills in database seed
 const FACILITATOR_SKILLS = [
-  'Leadership',
+  'Change Management',
   'Communication',
-  'Strategy',
-  'Technical',
-  'Data Analysis',
-  'Problem Solving',
-  'Team Building',
-  'Conflict Resolution',
-  'Coaching',
+  'Compliance Training',
+  'Customer Service',
+  'Diversity & Inclusion',
+  'Leadership Development',
+  'Onboarding',
+  'Performance Management',
+  'Process Improvement',
   'Project Management',
-  'Agile',
-  'Presentation',
-  'Facilitation'
+  'Safety Training',
+  'Sales Training',
+  'Team Building',
+  'Technical Skills',
+  'Time Management'
 ];
-const LOCATION_TYPES = ['Classroom', 'Virtual', 'On-site', 'Hybrid'];
+const LOCATION_TYPES = ['Conference Room', 'Auditorium', 'Training Room', 'Workshop Space', 'Meeting Room', 'Classroom', 'Virtual', 'Off-site'];
 
 export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }: Step3Props) {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(() => {
