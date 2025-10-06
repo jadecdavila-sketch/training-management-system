@@ -25,6 +25,11 @@ export const getAll = async (req: Request, res: Response) => {
                   location: true,
                 },
               },
+              participants: {
+                include: {
+                  participant: true,
+                },
+              },
             },
           },
           sessions: true,
@@ -143,6 +148,12 @@ export const create = async (req: Request, res: Response) => {
             duration: session.duration || 60,
             materials: [], // Can be populated later
             order: index,
+            participantTypes: session.participantTypes || [],
+            facilitatorSkills: session.facilitatorSkills || [],
+            locationTypes: session.locationTypes || [],
+            requiresFacilitator: session.requiresFacilitator !== undefined ? session.requiresFacilitator : true,
+            groupSizeMin: session.groupSizeMin || 1,
+            groupSizeMax: session.groupSizeMax || 20,
           })),
         },
         cohorts: {
@@ -181,6 +192,7 @@ export const create = async (req: Request, res: Response) => {
               endDate,
               capacity: cohort.maxParticipants || 20,
               status: 'scheduled',
+              formData: cohort.participantFilters ? { participantFilters: cohort.participantFilters } : null,
             };
           }),
         },
@@ -280,6 +292,73 @@ export const create = async (req: Request, res: Response) => {
           savedLocationId: createdSchedule.locationId
         });
       }
+    }
+
+    // Auto-enroll participants based on program and cohort filters
+    const programRegion = region || req.body.region;
+    console.log('Auto-enrolling participants with region filter:', programRegion);
+
+    for (const cohort of createdCohorts) {
+      // Get cohort filters from formData
+      const originalCohort = cohortDetails.find((c: any) => cohortIdMap.get(c.id) === cohort.id);
+      const cohortFilters = originalCohort?.participantFilters;
+
+      console.log(`Enrolling participants for cohort ${cohort.name}:`, {
+        programRegion,
+        cohortFilters,
+      });
+
+      // Fetch all participants
+      const allParticipants = await prisma.participant.findMany({
+        where: { status: 'active' },
+      });
+
+      console.log(`Found ${allParticipants.length} active participants`);
+
+      // Filter participants based on program region and cohort date filters
+      const eligibleParticipants = allParticipants.filter((participant) => {
+        // Level 1: Program region filter
+        if (programRegion && programRegion !== 'Global') {
+          if (participant.location !== programRegion) {
+            return false;
+          }
+        }
+
+        // Level 2: Cohort date range filter
+        if (cohortFilters?.employeeStartDateFrom || cohortFilters?.employeeStartDateTo) {
+          if (participant.hireDate) {
+            const hireDate = new Date(participant.hireDate);
+
+            if (cohortFilters.employeeStartDateFrom) {
+              const fromDate = new Date(cohortFilters.employeeStartDateFrom);
+              if (hireDate < fromDate) return false;
+            }
+
+            if (cohortFilters.employeeStartDateTo) {
+              const toDate = new Date(cohortFilters.employeeStartDateTo);
+              if (hireDate > toDate) return false;
+            }
+          } else {
+            return false; // Exclude if no hireDate but filter is set
+          }
+        }
+
+        return true;
+      });
+
+      console.log(`${eligibleParticipants.length} participants match filters for cohort ${cohort.name}`);
+
+      // Enroll eligible participants
+      for (const participant of eligibleParticipants) {
+        await prisma.cohortParticipant.create({
+          data: {
+            cohortId: cohort.id,
+            participantId: participant.id,
+          },
+        });
+      }
+
+      console.log(`Enrolled ${eligibleParticipants.length} participants to cohort ${cohort.name}`);
     }
 
     res.status(201).json({ success: true, data: program });

@@ -93,15 +93,21 @@ model Program {
 }
 
 model Session {
-  id          String   @id @default(cuid())
-  programId   String
-  title       String
-  description String?
-  duration    Int
-  materials   String[]
-  order       Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  programId          String
+  title              String
+  description        String?
+  duration           Int
+  materials          String[]
+  order              Int
+  participantTypes   String[] @default([])
+  facilitatorSkills  String[] @default([])
+  locationTypes      String[] @default([])
+  requiresFacilitator Boolean @default(true)
+  groupSizeMin       Int      @default(1)
+  groupSizeMax       Int      @default(20)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
   schedules   Schedule[]
@@ -117,6 +123,7 @@ model Cohort {
   endDate     DateTime
   capacity    Int
   status      String   @default("scheduled")
+  formData    Json?    // Store cohort configuration including participantFilters
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

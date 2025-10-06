@@ -4,8 +4,18 @@ export const Sidebar = () => {
   const location = useLocation();
 
   const navItems = [
-    { 
-      path: '/admin/participants', 
+    {
+      path: '/admin/programs',
+      label: 'Programs',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M9 3v18" />
+        </svg>
+      )
+    },
+    {
+      path: '/admin/participants',
       label: 'Participants',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -16,23 +26,13 @@ export const Sidebar = () => {
         </svg>
       )
     },
-  { 
-  path: '/admin/users', 
-  label: 'Users',
-  icon: (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  )
-},
-    { 
-      path: '/admin/programs', 
-      label: 'Programs',
+    {
+      path: '/admin/users',
+      label: 'Users',
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M9 3v18" />
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
         </svg>
       )
     },
@@ -62,13 +62,6 @@ export const Sidebar = () => {
 
   return (
     <div className="w-16 bg-primary-500 flex flex-col items-center py-6 gap-6">
-      {/* Logo */}
-      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center mb-4">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="#FF6B2C"/>
-        </svg>
-      </div>
-
       {/* Nav Items */}
       {navItems.map((item) => (
         <Link
