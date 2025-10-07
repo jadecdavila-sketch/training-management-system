@@ -6,6 +6,8 @@ import participantRoutes from './routes/participants.js';
 import userRoutes from './routes/users.js';
 import locationRoutes from './routes/locations.js';
 import programRoutes from './routes/programs.js';
+import scheduleRoutes from './routes/schedules.js';
+import cohortEnrollmentRoutes from './routes/cohortEnrollments.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -26,6 +28,8 @@ app.use('/api/participants', participantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/programs', programRoutes);
+app.use('/api/schedules', scheduleRoutes);
+app.use('/api/cohort-enrollments', cohortEnrollmentRoutes);
 
 // Health check
 app.get('/health', (_, res) => {

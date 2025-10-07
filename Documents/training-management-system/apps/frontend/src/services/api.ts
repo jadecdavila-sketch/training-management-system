@@ -161,3 +161,18 @@ export const programsApi = {
   delete: (id: string) =>
     fetchApi<{ success: boolean }>(`/programs/${id}`, { method: 'DELETE' }),
 };
+
+// Cohort Enrollment API
+export const cohortEnrollmentApi = {
+  moveParticipant: (participantId: string, fromCohortId: string, toCohortId: string) =>
+    fetchApi<{ success: boolean }>('/cohort-enrollments/move', {
+      method: 'POST',
+      body: JSON.stringify({ participantId, fromCohortId, toCohortId }),
+    }),
+
+  removeParticipant: (participantId: string, cohortId: string) =>
+    fetchApi<{ success: boolean }>('/cohort-enrollments/remove', {
+      method: 'POST',
+      body: JSON.stringify({ participantId, cohortId }),
+    }),
+};

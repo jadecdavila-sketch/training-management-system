@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, User, Calendar, AlertCircle, Trash2, ArrowRight } from 'lucide-react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { participantsApi, programsApi } from '@/services/api';
+import { participantsApi, programsApi, cohortEnrollmentApi } from '@/services/api';
 import { formatDateTime } from '@/utils/dateUtils';
 
 interface ParticipantDetailDrawerProps {
@@ -56,20 +56,39 @@ export function ParticipantDetailDrawer({
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
   });
 
-  const handleRemoveFromCohort = async () => {
-    // TODO: Implement API call to remove participant from cohort
-    console.log('Remove participant from cohort:', participant.id, cohortId);
-    setShowRemoveConfirm(false);
-    onClose();
-    queryClient.invalidateQueries({ queryKey: ['cohort'] });
+  // Mutation to remove participant from cohort
+  const removeMutation = useMutation({
+    mutationFn: () => cohortEnrollmentApi.removeParticipant(participant.id, cohortId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cohort'] });
+      setShowRemoveConfirm(false);
+      onClose();
+    },
+    onError: (error: any) => {
+      alert(error.message || 'Failed to remove participant from cohort');
+    },
+  });
+
+  // Mutation to move participant to another cohort
+  const moveMutation = useMutation({
+    mutationFn: (targetCohortId: string) =>
+      cohortEnrollmentApi.moveParticipant(participant.id, cohortId, targetCohortId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cohort'] });
+      setShowMoveModal(false);
+      onClose();
+    },
+    onError: (error: any) => {
+      alert(error.message || 'Failed to move participant to cohort');
+    },
+  });
+
+  const handleRemoveFromCohort = () => {
+    removeMutation.mutate();
   };
 
-  const handleMoveToCohort = async (targetCohortId: string) => {
-    // TODO: Implement API call to move participant to another cohort
-    console.log('Move participant to cohort:', participant.id, targetCohortId);
-    setShowMoveModal(false);
-    onClose();
-    queryClient.invalidateQueries({ queryKey: ['cohort'] });
+  const handleMoveToCohort = (targetCohortId: string) => {
+    moveMutation.mutate(targetCohortId);
   };
 
   if (!open) return null;
