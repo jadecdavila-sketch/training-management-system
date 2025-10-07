@@ -15,6 +15,10 @@ export const CohortDetailPage = () => {
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
+  const [participantSearch, setParticipantSearch] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('all');
 
   // For now, we'll need to fetch the program and find the cohort
   // TODO: Create a dedicated cohort API endpoint
@@ -51,9 +55,68 @@ export const CohortDetailPage = () => {
   }
 
   const { program, cohort } = data;
-  const schedules = cohort.schedules || [];
+
+  // Sort schedules chronologically by startTime
+  const sortedSchedules = [...(cohort.schedules || [])].sort((a: any, b: any) => {
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  });
+
+  // Filter and search schedules
+  const filteredSchedules = sortedSchedules.filter((schedule: any) => {
+    // Status filter
+    const hasAssignments = schedule.facilitatorId && schedule.locationId;
+    if (statusFilter === 'assigned' && !hasAssignments) return false;
+    if (statusFilter === 'unassigned' && hasAssignments) return false;
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const sessionTitle = schedule.session?.title?.toLowerCase() || '';
+      const facilitatorName = schedule.facilitator?.user?.name?.toLowerCase() || '';
+      const locationName = schedule.location?.name?.toLowerCase() || '';
+
+      return sessionTitle.includes(query) ||
+             facilitatorName.includes(query) ||
+             locationName.includes(query);
+    }
+
+    return true;
+  });
+
+  const schedules = sortedSchedules;
   const participants = cohort.participants || [];
   const unassignedCount = schedules.filter((s: any) => !s.facilitatorId || !s.locationId).length;
+
+  // Get unique departments from participants
+  const uniqueDepartments = Array.from(
+    new Set(participants.map((p: any) => p.participant?.department).filter(Boolean))
+  ).sort();
+
+  // Filter participants
+  const filteredParticipants = participants.filter((enrollment: any) => {
+    const participant = enrollment.participant;
+
+    // Department filter
+    if (departmentFilter !== 'all' && participant.department !== departmentFilter) {
+      return false;
+    }
+
+    // Search filter
+    if (participantSearch) {
+      const query = participantSearch.toLowerCase();
+      const fullName = `${participant.firstName} ${participant.lastName}`.toLowerCase();
+      const email = participant.email?.toLowerCase() || '';
+      const dept = participant.department?.toLowerCase() || '';
+      const jobTitle = participant.jobTitle?.toLowerCase() || '';
+
+      return fullName.includes(query) ||
+             email.includes(query) ||
+             dept.includes(query) ||
+             jobTitle.includes(query);
+    }
+
+    return true;
+  });
 
 
   const formatDateTime = (dateString: string) => {
@@ -253,25 +316,88 @@ export const CohortDetailPage = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-secondary-900">Session Schedule</h2>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 border border-secondary-300 text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors">
-                  <LayoutList className="w-4 h-4 inline mr-2" />
-                  List View
+            </div>
+
+            {/* Search and Filter */}
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Search sessions, facilitators, or locations..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <svg
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Filter Chips */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-secondary-600">Status:</span>
+                <button
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === 'all'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+                  }`}
+                >
+                  All ({schedules.length})
                 </button>
-                <button className="px-4 py-2 border border-secondary-300 text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors">
-                  <Calendar className="w-4 h-4 inline mr-2" />
-                  Calendar View
+                <button
+                  onClick={() => setStatusFilter('assigned')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === 'assigned'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+                  }`}
+                >
+                  Assigned ({schedules.length - unassignedCount})
                 </button>
+                <button
+                  onClick={() => setStatusFilter('unassigned')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    statusFilter === 'unassigned'
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+                  }`}
+                >
+                  Needs Assignment ({unassignedCount})
+                </button>
+                {(searchQuery || statusFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStatusFilter('all');
+                    }}
+                    className="ml-2 text-sm text-secondary-600 hover:text-secondary-900"
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             </div>
 
-            {schedules.length === 0 ? (
+            {filteredSchedules.length === 0 ? (
               <div className="text-center py-12 bg-secondary-50 rounded-lg">
-                <p className="text-secondary-600">No sessions scheduled yet</p>
+                <p className="text-secondary-600">
+                  {schedules.length === 0
+                    ? 'No sessions scheduled yet'
+                    : 'No sessions match your filters'}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {schedules.map((schedule: any) => {
+                {filteredSchedules.map((schedule: any) => {
                   const hasIssues = !schedule.facilitatorId || !schedule.locationId;
 
                   return (
@@ -345,14 +471,80 @@ export const CohortDetailPage = () => {
               <h2 className="text-lg font-semibold text-secondary-900">
                 Participants ({participants.length})
               </h2>
-              <button className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors">
-                Add Participants
-              </button>
             </div>
 
-            {participants.length === 0 ? (
+            {/* Search and Filter */}
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex gap-3">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    placeholder="Search participants by name, email, department, or job title..."
+                    value={participantSearch}
+                    onChange={(e) => setParticipantSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <svg
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Filter Chips */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-secondary-600">Department:</span>
+                <button
+                  onClick={() => setDepartmentFilter('all')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                    departmentFilter === 'all'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+                  }`}
+                >
+                  All ({participants.length})
+                </button>
+                {uniqueDepartments.map((dept: string) => {
+                  const count = participants.filter((p: any) => p.participant?.department === dept).length;
+                  return (
+                    <button
+                      key={dept}
+                      onClick={() => setDepartmentFilter(dept)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                        departmentFilter === dept
+                          ? 'bg-teal-600 text-white'
+                          : 'bg-secondary-100 text-secondary-700 hover:bg-secondary-200'
+                      }`}
+                    >
+                      {dept} ({count})
+                    </button>
+                  );
+                })}
+                {(participantSearch || departmentFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setParticipantSearch('');
+                      setDepartmentFilter('all');
+                    }}
+                    className="ml-2 text-sm text-secondary-600 hover:text-secondary-900"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {filteredParticipants.length === 0 ? (
               <div className="text-center py-12 bg-secondary-50 rounded-lg">
-                <p className="text-secondary-600">No participants enrolled yet</p>
+                <p className="text-secondary-600">
+                  {participants.length === 0
+                    ? 'No participants enrolled yet'
+                    : 'No participants match your filters'}
+                </p>
               </div>
             ) : (
               <div className="bg-white border border-secondary-200 rounded-lg overflow-hidden">
@@ -369,15 +561,20 @@ export const CohortDetailPage = () => {
                         Department
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-secondary-600 uppercase">
-                        Actions
+                        Job Title
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary-600 uppercase">
+                        Hire Date
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary-200">
-                    {participants.map((enrollment: any) => (
+                    {filteredParticipants.map((enrollment: any) => (
                       <tr key={enrollment.participantId} className="hover:bg-secondary-50">
-                        <td className="px-6 py-4 text-sm text-secondary-900">
-                          {enrollment.participant.firstName} {enrollment.participant.lastName}
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-medium text-secondary-900">
+                            {enrollment.participant.firstName} {enrollment.participant.lastName}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-secondary-700">
                           {enrollment.participant.email}
@@ -385,10 +582,17 @@ export const CohortDetailPage = () => {
                         <td className="px-6 py-4 text-sm text-secondary-700">
                           {enrollment.participant.department || '-'}
                         </td>
-                        <td className="px-6 py-4 text-sm">
-                          <button className="text-teal-600 hover:text-teal-700">
-                            Move
-                          </button>
+                        <td className="px-6 py-4 text-sm text-secondary-700">
+                          {enrollment.participant.jobTitle || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-secondary-700">
+                          {enrollment.participant.hireDate
+                            ? new Date(enrollment.participant.hireDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })
+                            : '-'}
                         </td>
                       </tr>
                     ))}
