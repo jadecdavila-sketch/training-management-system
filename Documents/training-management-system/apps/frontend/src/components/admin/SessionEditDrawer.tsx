@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/common/Button';
-import { Calendar, MapPin, Users, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, Clock, Download, CheckSquare, Square, Trash2, ArrowRight } from 'lucide-react';
 import { usersApi, locationsApi, programsApi } from '@/services/api';
 import { filterParticipantsByCascade } from '@/utils/participantFilters';
 
@@ -29,6 +29,7 @@ export const SessionEditDrawer: React.FC<SessionEditDrawerProps> = ({
   const [endTime, setEndTime] = useState('');
   const [startDate, setStartDate] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('details');
+  const [attendance, setAttendance] = useState<Record<string, boolean>>({});
 
   const queryClient = useQueryClient();
 
@@ -436,9 +437,37 @@ export const SessionEditDrawer: React.FC<SessionEditDrawerProps> = ({
 
               {activeTab === 'participants' && (
                 <div>
-                  <h3 className="text-lg font-semibold text-secondary-900 mb-4">
-                    Session Participants
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-secondary-900">
+                      Session Participants
+                    </h3>
+                    <button
+                      onClick={() => {
+                        // Export participants to CSV
+                        const csvContent = [
+                          ['Name', 'Email', 'Department', 'Job Title', 'Attendance'].join(','),
+                          ...filteredParticipants.map((enrollment: any) => [
+                            `"${enrollment.participant.firstName} ${enrollment.participant.lastName}"`,
+                            enrollment.participant.email,
+                            enrollment.participant.department || '',
+                            enrollment.participant.jobTitle || '',
+                            attendance[enrollment.participantId] ? 'Present' : 'Absent'
+                          ].join(','))
+                        ].join('\n');
+
+                        const blob = new Blob([csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `session-participants-${schedule.session?.title}.csv`;
+                        a.click();
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export List
+                    </button>
+                  </div>
 
                   {schedule.session?.participantTypes?.length > 0 && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -466,6 +495,25 @@ export const SessionEditDrawer: React.FC<SessionEditDrawerProps> = ({
                       <table className="w-full">
                         <thead className="bg-secondary-50">
                           <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary-600 uppercase w-10">
+                              <button
+                                onClick={() => {
+                                  const allChecked = filteredParticipants.every((e: any) => attendance[e.participantId]);
+                                  const newAttendance = { ...attendance };
+                                  filteredParticipants.forEach((e: any) => {
+                                    newAttendance[e.participantId] = !allChecked;
+                                  });
+                                  setAttendance(newAttendance);
+                                }}
+                                className="hover:bg-secondary-100 p-1 rounded transition-colors"
+                              >
+                                {filteredParticipants.every((e: any) => attendance[e.participantId]) ? (
+                                  <CheckSquare className="w-4 h-4 text-teal-600" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-secondary-400" />
+                                )}
+                              </button>
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-secondary-600 uppercase">
                               Name
                             </th>
@@ -475,11 +523,29 @@ export const SessionEditDrawer: React.FC<SessionEditDrawerProps> = ({
                             <th className="px-4 py-3 text-left text-xs font-medium text-secondary-600 uppercase">
                               Job Title
                             </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-secondary-600 uppercase">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-secondary-200">
                           {filteredParticipants.map((enrollment: any) => (
                             <tr key={enrollment.participantId} className="hover:bg-secondary-50">
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => setAttendance({
+                                    ...attendance,
+                                    [enrollment.participantId]: !attendance[enrollment.participantId]
+                                  })}
+                                  className="hover:bg-secondary-100 p-1 rounded transition-colors"
+                                >
+                                  {attendance[enrollment.participantId] ? (
+                                    <CheckSquare className="w-4 h-4 text-teal-600" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-secondary-400" />
+                                  )}
+                                </button>
+                              </td>
                               <td className="px-4 py-3 text-sm text-secondary-900">
                                 {enrollment.participant.firstName} {enrollment.participant.lastName}
                               </td>
@@ -488,6 +554,30 @@ export const SessionEditDrawer: React.FC<SessionEditDrawerProps> = ({
                               </td>
                               <td className="px-4 py-3 text-sm text-secondary-700">
                                 {enrollment.participant.jobTitle || '-'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => {
+                                      // TODO: Implement remove from session
+                                      console.log('Remove participant from session:', enrollment.participantId);
+                                    }}
+                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Remove from session"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      // TODO: Implement move to another session
+                                      console.log('Move participant to another session:', enrollment.participantId);
+                                    }}
+                                    className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                                    title="Move to another session"
+                                  >
+                                    <ArrowRight className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
