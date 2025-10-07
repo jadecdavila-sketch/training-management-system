@@ -46,11 +46,15 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
     new Set(formData.cohortDetails.length > 0 ? [formData.cohortDetails[0].id] : [])
   );
 
-  // Initialize on mount
+  // Initialize cohorts and sync with numberOfCohorts changes
   useEffect(() => {
-    if (formData.cohortDetails.length === 0) {
+    const currentCount = formData.cohortDetails.length;
+    const targetCount = formData.numberOfCohorts;
+
+    if (currentCount === 0) {
+      // Initial setup - create all cohorts
       const newCohorts: CohortDetail[] = [];
-      for (let i = 0; i < formData.numberOfCohorts; i++) {
+      for (let i = 0; i < targetCount; i++) {
         newCohorts.push({
           id: `cohort-${i + 1}`,
           name: `Cohort ${i + 1}`,
@@ -60,9 +64,32 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
       }
       updateFormData({ cohortDetails: newCohorts });
       setExpandedCohorts(new Set([newCohorts[0]?.id].filter(Boolean)));
+    } else if (currentCount < targetCount) {
+      // Add more cohorts
+      const newCohorts = [...formData.cohortDetails];
+      for (let i = currentCount; i < targetCount; i++) {
+        newCohorts.push({
+          id: `cohort-${i + 1}`,
+          name: `Cohort ${i + 1}`,
+          startDate: '',
+          participantFilters: {}
+        });
+      }
+      updateFormData({ cohortDetails: newCohorts });
+    } else if (currentCount > targetCount) {
+      // Remove excess cohorts
+      const newCohorts = formData.cohortDetails.slice(0, targetCount);
+      updateFormData({ cohortDetails: newCohorts });
+      // Remove expanded states for removed cohorts
+      const newExpanded = new Set(
+        Array.from(expandedCohorts).filter(id =>
+          newCohorts.some(c => c.id === id)
+        )
+      );
+      setExpandedCohorts(newExpanded);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [formData.numberOfCohorts]);
 
   const toggleCohort = (cohortId: string) => {
     const newExpanded = new Set(expandedCohorts);
