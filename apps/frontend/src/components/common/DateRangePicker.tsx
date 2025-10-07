@@ -75,10 +75,22 @@ export function DateRangePicker({ value, onChange, placeholder = 'Select date ra
           {/* Dropdown - Fixed position */}
           <div
             className="fixed z-20 bg-white border border-gray-200 rounded-lg shadow-xl p-4"
-            style={{
-              top: `${buttonRef.getBoundingClientRect().bottom + 8}px`,
-              left: `${buttonRef.getBoundingClientRect().left}px`,
-            }}
+            style={(() => {
+              const buttonRect = buttonRef.getBoundingClientRect();
+              const dropdownHeight = 500; // Approximate height of the calendar
+              const spaceBelow = window.innerHeight - buttonRect.bottom;
+              const spaceAbove = buttonRect.top;
+
+              // Position above if not enough space below
+              const shouldPositionAbove = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
+              return {
+                [shouldPositionAbove ? 'bottom' : 'top']: shouldPositionAbove
+                  ? `${window.innerHeight - buttonRect.top + 8}px`
+                  : `${buttonRect.bottom + 8}px`,
+                left: `${buttonRect.left}px`,
+              };
+            })()}
           >
             <style>{`
               .date-range-calendar .rdp {
