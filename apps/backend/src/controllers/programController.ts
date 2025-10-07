@@ -443,6 +443,98 @@ export const update = async (req: Request, res: Response) => {
       }
     }
 
+    // Handle cohort creation/updates if formData contains cohort details
+    if (formData?.cohortDetails && formData.cohortDetails.length > 0) {
+      const existingCohorts = await prisma.cohort.findMany({
+        where: { programId: id },
+      });
+
+      const existingSessions = await prisma.session.findMany({
+        where: { programId: id },
+      });
+
+      // Identify new cohorts (those not yet in the database)
+      const newCohorts = formData.cohortDetails.filter((cohortData: any) => {
+        // A cohort is new if it doesn't exist in the database
+        return !existingCohorts.some(existing => existing.name === cohortData.name);
+      });
+
+      // Create new cohorts
+      for (const cohortData of newCohorts) {
+        const startDate = cohortData.startDate ? parseLocalDate(cohortData.startDate) : new Date();
+
+        // Calculate end date based on scheduled sessions or default
+        let endDate: Date;
+        if (cohortData.endDate) {
+          endDate = parseLocalDate(cohortData.endDate);
+        } else if (formData.scheduledSessions && formData.scheduledSessions.length > 0) {
+          endDate = new Date(formData.scheduledSessions[formData.scheduledSessions.length - 1].endTime);
+        } else {
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + (12 * 7));
+        }
+
+        const newCohort = await prisma.cohort.create({
+          data: {
+            programId: id,
+            name: cohortData.name,
+            startDate,
+            endDate,
+            capacity: cohortData.maxParticipants || 20,
+            status: 'scheduled',
+            formData: cohortData.participantFilters ? { participantFilters: cohortData.participantFilters } : null,
+          },
+        });
+
+        // Create schedules for the new cohort
+        if (formData.scheduledSessions) {
+          for (const scheduledSession of formData.scheduledSessions) {
+            const session = existingSessions.find((s) => s.title === scheduledSession.sessionName);
+            if (!session) continue;
+
+            // Find facilitator assignment if any
+            let facilitatorId: string | undefined;
+            if (formData.facilitatorAssignments) {
+              const facilitatorAssignment = formData.facilitatorAssignments.find(
+                (fa: any) => fa.cohortId === cohortData.id && fa.sessionId === scheduledSession.sessionId
+              );
+              if (facilitatorAssignment?.facilitatorEmail) {
+                const existingFacilitator = await prisma.facilitator.findFirst({
+                  where: { user: { email: facilitatorAssignment.facilitatorEmail } }
+                });
+                if (existingFacilitator) facilitatorId = existingFacilitator.id;
+              }
+            }
+
+            // Find location assignment if any
+            let locationId: string | undefined;
+            if (formData.locationAssignments) {
+              const locationAssignment = formData.locationAssignments.find(
+                (la: any) => la.cohortId === cohortData.id && la.sessionId === scheduledSession.sessionId
+              );
+              if (locationAssignment?.locationName) {
+                const existingLocation = await prisma.location.findFirst({
+                  where: { name: locationAssignment.locationName }
+                });
+                if (existingLocation) locationId = existingLocation.id;
+              }
+            }
+
+            await prisma.schedule.create({
+              data: {
+                cohortId: newCohort.id,
+                sessionId: session.id,
+                startTime: new Date(scheduledSession.startTime),
+                endTime: new Date(scheduledSession.endTime),
+                facilitatorId,
+                locationId,
+              },
+            });
+          }
+        }
+      }
+    }
+
     const program = await prisma.program.update({
       where: { id },
       data: updateData,
