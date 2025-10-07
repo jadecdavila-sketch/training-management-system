@@ -30,8 +30,6 @@ services:
   - type: web
     name: tms-frontend
     env: static
-    region: oregon
-    plan: free
     buildCommand: npm install -g pnpm && pnpm install && cd apps/frontend && pnpm build
     staticPublishPath: apps/frontend/dist
     envVars:
