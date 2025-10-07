@@ -471,15 +471,16 @@ export const CohortDetailPage = () => {
               </div>
             </div>
 
-            {/* Search and Filter */}
-            <div className="flex flex-col gap-4 mb-6">
-              <div className="flex gap-3">
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    placeholder="Search sessions, facilitators, or locations..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+            {/* Search and Filter - Only show in list view */}
+            {viewMode === 'list' && (
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="Search sessions, facilitators, or locations..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <svg
@@ -538,7 +539,8 @@ export const CohortDetailPage = () => {
                   </button>
                 )}
               </div>
-            </div>
+              </div>
+            )}
 
             {filteredSchedules.length === 0 ? (
               <div className="text-center py-12 bg-secondary-50 rounded-lg">
@@ -615,9 +617,9 @@ export const CohortDetailPage = () => {
                 })}
               </div>
             ) : (
-              /* Calendar View */
+              /* Calendar View - Show all schedules without filters */
               <CalendarView
-                schedules={filteredSchedules}
+                schedules={schedules}
                 cohortStartDate={cohort.startDate}
                 cohortEndDate={cohort.endDate}
                 onSessionClick={(schedule) => {
