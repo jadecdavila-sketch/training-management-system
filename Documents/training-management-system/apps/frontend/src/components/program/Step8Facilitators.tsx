@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Users, Calendar, AlertCircle } from 'lucide-react';
 import { usersApi } from '@/services/api';
+import { formatDateString } from '@/utils/dateUtils';
 
 interface Session {
   id: string;
@@ -88,6 +89,9 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
 
   // Generate round-robin assignments using useMemo to prevent infinite loops
   const { assignments, unmatched } = useMemo(() => {
+    if (loading || !facilitators.length) {
+      return { assignments: [], unmatched: [] };
+    }
     const assignments: FacilitatorAssignment[] = [];
     const unmatched: UnmatchedSession[] = [];
     let facilitatorIndex = 0;
@@ -128,7 +132,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
                 sessionId: scheduledSession.sessionId,
                 facilitatorName: perfectMatch.name,
                 facilitatorEmail: perfectMatch.email,
-                skills: perfectMatch.skills,
+                skills: requiredSkills, // Only show the matching skills, not all skills
                 matchPercentage: 100
               });
             } else {
@@ -148,6 +152,13 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
     return { assignments, unmatched };
   }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions, facilitators]);
 
+  // Save assignments to formData whenever they change
+  useEffect(() => {
+    if (assignments.length > 0 && !loading) {
+      updateFormData({ facilitatorAssignments: assignments });
+    }
+  }, [assignments, loading]);
+
   // Group assignments and unmatched by cohort
   const assignmentsByCohort = formData.cohortDetails.map(cohort => ({
     cohort,
@@ -162,10 +173,6 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
     return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   // Calculate KPIs
   const perfectMatches = assignments.filter(a => a.matchPercentage === 100).length;
@@ -253,7 +260,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
                   <div>
                     <h3 className="font-semibold text-gray-900">{cohort.name}</h3>
                     <p className="text-sm text-gray-600">
-                      Starts: {formatDate(cohort.startDate)}
+                      Starts: {formatDateString(cohort.startDate, { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
@@ -313,7 +320,7 @@ export function Step8Facilitators({ formData, updateFormData, onNext, onBack }: 
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1">
-                              {assignment.skills.slice(0, 3).map((skill, skillIdx) => (
+                              {assignment.skills.map((skill, skillIdx) => (
                                 <span
                                   key={skillIdx}
                                   className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800"

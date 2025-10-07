@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Calendar, Filter } from 'lucide-react';
+import { formatDateString } from '@/utils/dateUtils';
+import { DateRangePicker } from '@/components/common/DateRangePicker';
 
 interface CohortDetail {
   id: string;
@@ -120,11 +122,7 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
                     <h3 className="font-semibold text-gray-900">{cohort.name}</h3>
                     {cohort.startDate && (
                       <p className="text-sm text-gray-600 mt-0.5">
-                        Starts: {new Date(cohort.startDate).toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
+                        Starts: {formatDateString(cohort.startDate)}
                       </p>
                     )}
                   </div>
@@ -198,26 +196,22 @@ export function Step7CohortDetails({ formData, updateFormData, onNext, onBack }:
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Employee Start Date Range
                       </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">From</label>
-                          <input
-                            type="date"
-                            value={cohort.participantFilters.employeeStartDateFrom || ''}
-                            onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateFrom', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-600 mb-1">To</label>
-                          <input
-                            type="date"
-                            value={cohort.participantFilters.employeeStartDateTo || ''}
-                            onChange={(e) => updateCohortFilter(cohort.id, 'employeeStartDateTo', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                      </div>
+                      <DateRangePicker
+                        value={{
+                          from: cohort.participantFilters.employeeStartDateFrom,
+                          to: cohort.participantFilters.employeeStartDateTo,
+                        }}
+                        onChange={(range) => {
+                          updateCohort(cohort.id, {
+                            participantFilters: {
+                              ...cohort.participantFilters,
+                              employeeStartDateFrom: range.from,
+                              employeeStartDateTo: range.to,
+                            },
+                          });
+                        }}
+                        placeholder="Select employee start date range"
+                      />
                       <p className="text-xs text-gray-500 mt-1">Include employees who started between these dates</p>
                     </div>
                   </div>

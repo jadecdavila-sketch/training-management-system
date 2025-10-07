@@ -1,6 +1,25 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 
+// Helper function to parse date strings in local timezone
+function parseLocalDate(dateStr: string | Date): Date {
+  // If already a Date object, extract the date part and reparse
+  if (dateStr instanceof Date) {
+    const year = dateStr.getFullYear();
+    const month = dateStr.getMonth();
+    const day = dateStr.getDate();
+    return new Date(year, month, day);
+  }
+
+  // Handle ISO datetime strings by extracting just the date part
+  let dateOnly = dateStr;
+  if (dateStr.includes('T')) {
+    dateOnly = dateStr.split('T')[0];
+  }
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export const getAll = async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -160,8 +179,8 @@ export const create = async (req: Request, res: Response) => {
           create: cohortDetails.map((cohort: any) => {
             console.log('Processing cohort:', cohort);
 
-            // Parse and validate start date
-            const startDate = cohort.startDate ? new Date(cohort.startDate) : new Date();
+            // Parse and validate start date using local timezone
+            const startDate = cohort.startDate ? parseLocalDate(cohort.startDate) : new Date();
             if (isNaN(startDate.getTime())) {
               console.error('Invalid start date for cohort:', cohort);
               throw new Error(`Invalid start date for cohort ${cohort.name}`);
@@ -170,7 +189,7 @@ export const create = async (req: Request, res: Response) => {
             // Calculate end date from scheduled sessions if not provided
             let endDate: Date;
             if (cohort.endDate) {
-              endDate = new Date(cohort.endDate);
+              endDate = parseLocalDate(cohort.endDate);
               if (isNaN(endDate.getTime())) {
                 console.error('Invalid end date for cohort:', cohort);
                 throw new Error(`Invalid end date for cohort ${cohort.name}`);
@@ -327,15 +346,15 @@ export const create = async (req: Request, res: Response) => {
         // Level 2: Cohort date range filter
         if (cohortFilters?.employeeStartDateFrom || cohortFilters?.employeeStartDateTo) {
           if (participant.hireDate) {
-            const hireDate = new Date(participant.hireDate);
+            const hireDate = parseLocalDate(participant.hireDate);
 
             if (cohortFilters.employeeStartDateFrom) {
-              const fromDate = new Date(cohortFilters.employeeStartDateFrom);
+              const fromDate = parseLocalDate(cohortFilters.employeeStartDateFrom);
               if (hireDate < fromDate) return false;
             }
 
             if (cohortFilters.employeeStartDateTo) {
-              const toDate = new Date(cohortFilters.employeeStartDateTo);
+              const toDate = parseLocalDate(cohortFilters.employeeStartDateTo);
               if (hireDate > toDate) return false;
             }
           } else {

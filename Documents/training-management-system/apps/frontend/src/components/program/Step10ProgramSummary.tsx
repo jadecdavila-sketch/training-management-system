@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle2, Calendar, Users, BookOpen } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { programsApi } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
+import { parseLocalDate, formatDateString } from '@/utils/dateUtils';
 
 interface ProgramFormData {
   programName: string;
@@ -64,9 +65,12 @@ interface Step10Props {
   updateFormData: (updates: Partial<ProgramFormData>) => void;
   onNext: () => void;
   onBack: () => void;
+  programId?: string;
+  isEditMode?: boolean;
+  onCreateProgram?: (callback: () => void) => void;
 }
 
-export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
+export function Step10ProgramSummary({ formData, onBack, programId, isEditMode, onCreateProgram }: Step10Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
@@ -81,86 +85,115 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
       console.error('Full error:', error);
       const errorMessage = error.response?.data?.details || error.message || 'Unknown error';
       alert(`Failed to create program: ${errorMessage}`);
-      setIsSaving(false); // Reset saving state on error
+      setIsSaving(false);
     },
   });
 
-  const handleCreateProgram = () => {
+  const updateProgramMutation = useMutation({
+    mutationFn: (data: any) => programsApi.update(programId!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+      queryClient.invalidateQueries({ queryKey: ['program', programId] });
+      navigate(`/admin/programs/${programId}/cohorts`);
+    },
+    onError: (error: any) => {
+      console.error('Full error:', error);
+      const errorMessage = error.response?.data?.details || error.message || 'Unknown error';
+      alert(`Failed to update program: ${errorMessage}`);
+      setIsSaving(false);
+    },
+  });
+
+  // Register the create program callback with the parent wizard
+  useEffect(() => {
+    if (onCreateProgram) {
+      onCreateProgram(handleSaveProgram);
+    }
+  }, [onCreateProgram]);
+
+  const handleSaveProgram = () => {
     setIsSaving(true);
 
-    // Transform scheduledSessions from relative (week/day/time) to absolute timestamps
-    // Use the first cohort's start date as the base
-    const baseStartDate = formData.cohortDetails[0]?.startDate
-      ? new Date(formData.cohortDetails[0].startDate)
-      : new Date();
-
-    const transformedScheduledSessions = formData.scheduledSessions.map(session => {
-      // Convert day name to day index (Mon=0, Tue=1, etc.)
-      const dayMap: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
-      const startDayIndex = dayMap[session.startDay] ?? 0;
-      const endDayIndex = dayMap[session.endDay] ?? 0;
-
-      // Calculate start timestamp: base date + (startWeek * 7 days) + startDayIndex
-      const startDate = new Date(baseStartDate);
-      startDate.setDate(startDate.getDate() + (session.startWeek * 7) + startDayIndex);
-
-      // Parse time (e.g., "09:00") and set it
-      const [startHours, startMinutes] = session.startTime.split(':').map(Number);
-      startDate.setHours(startHours, startMinutes, 0, 0);
-
-      // Calculate end timestamp
-      const endDate = new Date(baseStartDate);
-      endDate.setDate(endDate.getDate() + (session.endWeek * 7) + endDayIndex);
-      const [endHours, endMinutes] = session.endTime.split(':').map(Number);
-      endDate.setHours(endHours, endMinutes, 0, 0);
-
-      // Find the session name from the sessions list
-      const sessionDetail = formData.sessions.find(s => s.id === session.sessionId);
-
-      return {
-        sessionId: session.sessionId,
-        sessionName: sessionDetail?.name || '',
-        startTime: startDate.toISOString(),
-        endTime: endDate.toISOString()
+    if (isEditMode) {
+      // In edit mode, just update the formData
+      const updateData = {
+        programName: formData.programName,
+        region: formData.region,
+        description: formData.description,
+        formData: formData, // Update the stored formData
       };
-    });
+      updateProgramMutation.mutate(updateData);
+    } else {
+      // Transform scheduledSessions from relative (week/day/time) to absolute timestamps
+      // Use the first cohort's start date as the base
+      const baseStartDate = formData.cohortDetails[0]?.startDate
+        ? parseLocalDate(formData.cohortDetails[0].startDate)
+        : new Date();
 
-    // Also calculate endDate for each cohort based on the last scheduled session
-    const cohortsWithEndDates = formData.cohortDetails.map(cohort => {
-      const cohortStartDate = new Date(cohort.startDate);
+      const transformedScheduledSessions = formData.scheduledSessions.map(session => {
+        // Convert day name to day index (Mon=0, Tue=1, etc.)
+        const dayMap: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+        const startDayIndex = dayMap[session.startDay] ?? 0;
+        const endDayIndex = dayMap[session.endDay] ?? 0;
 
-      // Find the latest scheduled session end time
-      let latestEndDate = new Date(cohortStartDate);
-      if (transformedScheduledSessions.length > 0) {
-        const lastSession = transformedScheduledSessions[transformedScheduledSessions.length - 1];
-        latestEndDate = new Date(lastSession.endTime);
-      } else {
-        // Default to 12 weeks after start
-        latestEndDate.setDate(latestEndDate.getDate() + (12 * 7));
-      }
+        // Calculate start timestamp: base date + (startWeek * 7 days) + startDayIndex
+        const startDate = new Date(baseStartDate);
+        startDate.setDate(startDate.getDate() + (session.startWeek * 7) + startDayIndex);
 
-      return {
-        ...cohort,
-        startDate: cohort.startDate,
-        endDate: latestEndDate.toISOString()
+        // Parse time (e.g., "09:00") and set it
+        const [startHours, startMinutes] = session.startTime.split(':').map(Number);
+        startDate.setHours(startHours, startMinutes, 0, 0);
+
+        // Calculate end timestamp
+        const endDate = new Date(baseStartDate);
+        endDate.setDate(endDate.getDate() + (session.endWeek * 7) + endDayIndex);
+        const [endHours, endMinutes] = session.endTime.split(':').map(Number);
+        endDate.setHours(endHours, endMinutes, 0, 0);
+
+        // Find the session name from the sessions list
+        const sessionDetail = formData.sessions.find(s => s.id === session.sessionId);
+
+        return {
+          sessionId: session.sessionId,
+          sessionName: sessionDetail?.name || '',
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString()
+        };
+      });
+
+      // Also calculate endDate for each cohort based on the last scheduled session
+      const cohortsWithEndDates = formData.cohortDetails.map(cohort => {
+        const cohortStartDate = parseLocalDate(cohort.startDate);
+
+        // Find the latest scheduled session end time
+        let latestEndDate = new Date(cohortStartDate);
+        if (transformedScheduledSessions.length > 0) {
+          const lastSession = transformedScheduledSessions[transformedScheduledSessions.length - 1];
+          latestEndDate = new Date(lastSession.endTime);
+        } else {
+          // Default to 12 weeks after start
+          latestEndDate.setDate(latestEndDate.getDate() + (12 * 7));
+        }
+
+        return {
+          ...cohort,
+          startDate: cohort.startDate,
+          endDate: latestEndDate.toISOString()
+        };
+      });
+
+      const transformedData = {
+        ...formData,
+        scheduledSessions: transformedScheduledSessions,
+        cohortDetails: cohortsWithEndDates,
+        // Store original formData for editing (before transformation)
+        originalFormData: formData
       };
-    });
 
-    const transformedData = {
-      ...formData,
-      scheduledSessions: transformedScheduledSessions,
-      cohortDetails: cohortsWithEndDates,
-      // Store original formData for editing (before transformation)
-      originalFormData: formData
-    };
-
-    createProgramMutation.mutate(transformedData);
+      createProgramMutation.mutate(transformedData);
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  };
 
   const totalDuration = formData.useBlocks
     ? formData.blocks.reduce((sum, block) => sum + block.duration, 0)
@@ -276,7 +309,7 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
                     <span className="font-medium">{cohort.name}</span>
                     <span className="text-gray-600 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {formatDate(cohort.startDate)}
+                      {formatDateString(cohort.startDate)}
                     </span>
                   </div>
                 ))}
@@ -292,7 +325,7 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
                   <div key={period.id} className="text-sm bg-orange-50 p-3 rounded">
                     <p className="font-medium text-orange-900">{period.description}</p>
                     <p className="text-orange-700 text-xs mt-1">
-                      {formatDate(period.startDate)} - {formatDate(period.endDate)}
+                      {formatDateString(period.startDate)} - {formatDateString(period.endDate)}
                     </p>
                   </div>
                 ))}
@@ -324,24 +357,6 @@ export function Step10ProgramSummary({ formData, onBack }: Step10Props) {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="bg-white border-2 border-teal-500 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-1">Ready to Create Program?</h3>
-              <p className="text-sm text-gray-600">
-                Review all details above. Click "Create Program" to finalize or go back to make changes.
-              </p>
-            </div>
-            <button
-              onClick={handleCreateProgram}
-              disabled={isSaving || createProgramMutation.isPending}
-              className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving || createProgramMutation.isPending ? 'Creating...' : 'Create Program'}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

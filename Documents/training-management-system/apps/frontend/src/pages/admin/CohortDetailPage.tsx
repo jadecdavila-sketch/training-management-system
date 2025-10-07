@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { programsApi } from '@/services/api';
 import { ChevronLeft, Calendar, Users, LayoutList, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
+import { SessionEditDrawer } from '@/components/admin/SessionEditDrawer';
+import { formatDateTime } from '@/utils/dateUtils';
 
 type TabType = 'sessions' | 'participants';
 
@@ -11,6 +13,8 @@ export const CohortDetailPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
+  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // For now, we'll need to fetch the program and find the cohort
   // TODO: Create a dedicated cohort API endpoint
@@ -51,7 +55,8 @@ export const CohortDetailPage = () => {
   const participants = cohort.participants || [];
   const unassignedCount = schedules.filter((s: any) => !s.facilitatorId || !s.locationId).length;
 
-  const formatDate = (dateString: string) => {
+
+  const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -98,7 +103,7 @@ export const CohortDetailPage = () => {
           <div>
             <h1 className="text-2xl font-bold text-secondary-900 mb-2">{cohort.name}</h1>
             <p className="text-secondary-600">
-              {formatDate(cohort.startDate)} - {formatDate(cohort.endDate)}
+              {formatDateTime(cohort.startDate)} - {formatDateTime(cohort.endDate)}
             </p>
           </div>
 
@@ -155,8 +160,8 @@ export const CohortDetailPage = () => {
             />
           </div>
           <div className="flex justify-between text-xs text-gray-600 mt-2">
-            <span>{formatDate(cohort.startDate)}</span>
-            <span>{formatDate(cohort.endDate)}</span>
+            <span>{formatDateTime(cohort.startDate)}</span>
+            <span>{formatDateTime(cohort.endDate)}</span>
           </div>
         </div>
 
@@ -272,8 +277,12 @@ export const CohortDetailPage = () => {
                   return (
                     <div
                       key={schedule.id}
-                      className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all ${
-                        hasIssues ? 'border-orange-300' : 'border-secondary-200'
+                      onClick={() => {
+                        setSelectedSchedule(schedule);
+                        setDrawerOpen(true);
+                      }}
+                      className={`bg-white border rounded-lg p-4 hover:shadow-md transition-all cursor-pointer ${
+                        hasIssues ? 'border-orange-300 hover:border-orange-400' : 'border-secondary-200 hover:border-teal-300'
                       }`}
                     >
                       <div className="flex items-start justify-between">
@@ -291,7 +300,7 @@ export const CohortDetailPage = () => {
                             <div>
                               <p className="text-secondary-600 mb-1">Date & Time</p>
                               <p className="font-medium text-secondary-900">
-                                {formatDate(schedule.startTime)}
+                                {formatDateTime(schedule.startTime)}
                               </p>
                               <p className="text-secondary-700">
                                 {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
@@ -321,10 +330,6 @@ export const CohortDetailPage = () => {
                             </div>
                           </div>
                         </div>
-
-                        <button className="px-4 py-2 text-sm border border-secondary-300 text-secondary-700 hover:bg-secondary-50 rounded-lg transition-colors">
-                          Manage
-                        </button>
                       </div>
                     </div>
                   );
@@ -394,6 +399,15 @@ export const CohortDetailPage = () => {
           </div>
         )}
       </div>
+
+      {/* Session Edit Drawer */}
+      <SessionEditDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        schedule={selectedSchedule}
+        programId={program?.id || ''}
+        cohortId={cohortId || ''}
+      />
     </div>
   );
 };

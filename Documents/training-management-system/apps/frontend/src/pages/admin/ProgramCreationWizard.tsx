@@ -163,7 +163,10 @@ export const ProgramCreationWizard = () => {
       case 3:
         return formData.sessions.every(s => s.name && s.groupSizeMin > 0 && s.groupSizeMax >= s.groupSizeMin);
       case 4:
-        return true;
+        // All sessions must be scheduled
+        return formData.sessions.every(session =>
+          formData.scheduledSessions.some(scheduled => scheduled.sessionId === session.id)
+        );
       case 5:
         return true; // Review step, always valid
       case 6:
@@ -176,7 +179,13 @@ export const ProgramCreationWizard = () => {
   };
 
   const goToNextStep = () => {
-    if (currentStep < TOTAL_STEPS && validateCurrentStep()) {
+    if (currentStep === TOTAL_STEPS) {
+      // On step 10, trigger program creation
+      const createCallback = (window as any).__createProgramCallback;
+      if (createCallback) {
+        createCallback();
+      }
+    } else if (currentStep < TOTAL_STEPS && validateCurrentStep()) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -188,6 +197,9 @@ export const ProgramCreationWizard = () => {
   };
 
   const canNavigateToStep = (stepNumber: number): boolean => {
+    // In edit mode, allow navigation to all steps
+    if (isEditMode) return true;
+
     // Can always go to current step
     if (stepNumber === currentStep) return true;
 
@@ -207,9 +219,23 @@ export const ProgramCreationWizard = () => {
     }
   };
 
-  const handleSaveAndClose = () => {
-    console.log('Saving program:', formData);
-    navigate('/admin/programs');
+  const handleSaveAndClose = async () => {
+    if (!isEditMode || !id) return;
+
+    try {
+      const updateData = {
+        programName: formData.programName,
+        region: formData.region,
+        description: formData.description,
+        formData: formData,
+      };
+
+      await programsApi.update(id, updateData);
+      navigate(`/admin/programs/${id}/cohorts`);
+    } catch (error: any) {
+      console.error('Failed to update program:', error);
+      alert(`Failed to save changes: ${error.message}`);
+    }
   };
 
   const handleCancel = () => {
@@ -320,6 +346,12 @@ export const ProgramCreationWizard = () => {
             updateFormData={updateFormData}
             onNext={goToNextStep}
             onBack={goToPreviousStep}
+            programId={id}
+            isEditMode={isEditMode}
+            onCreateProgram={(callback) => {
+              // Store the callback so the Next button can trigger it
+              (window as any).__createProgramCallback = callback;
+            }}
           />
         );
       default:
@@ -412,13 +444,15 @@ export const ProgramCreationWizard = () => {
             Step {currentStep} of {TOTAL_STEPS}
           </span>
 
-          <button
-            onClick={goToNextStep}
-            disabled={currentStep === TOTAL_STEPS || !validateCurrentStep()}
-            className="px-6 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Next
-          </button>
+          {!(currentStep === TOTAL_STEPS && isEditMode) && (
+            <button
+              onClick={goToNextStep}
+              disabled={currentStep < TOTAL_STEPS && !validateCurrentStep()}
+              className="px-6 py-2 bg-accent-500 hover:bg-accent-600 text-white rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {currentStep === TOTAL_STEPS ? 'Create Program' : 'Next'}
+            </button>
+          )}
         </div>
       </div>
     </div>

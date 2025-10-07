@@ -47,12 +47,12 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const TIME_SLOTS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
 
 const SESSION_COLORS = [
-  { bg: '#385D84', hover: '#2d4a6a' },
-  { bg: '#09CDB2', hover: '#07a390' },
-  { bg: '#0D2539', hover: '#091a28' },
-  { bg: '#FF8E01', hover: '#cc7201' },
-  { bg: '#FFCC01', hover: '#cca301' },
-  { bg: '#9DC401', hover: '#7d9d01' }
+  { bg: '#2C5F8D', hover: '#234A6E', text: '#FFFFFF' },  // Dark blue - WCAG AA
+  { bg: '#008B8B', hover: '#006B6B', text: '#FFFFFF' },  // Dark cyan - WCAG AA
+  { bg: '#0D2539', hover: '#091a28', text: '#FFFFFF' },  // Very dark blue - WCAG AAA
+  { bg: '#D97706', hover: '#B45F06', text: '#FFFFFF' },  // Dark orange - WCAG AA
+  { bg: '#CA8A04', hover: '#A16A03', text: '#000000' },  // Dark yellow - WCAG AA with black text
+  { bg: '#65A30D', hover: '#4D7C0F', text: '#FFFFFF' }   // Dark green - WCAG AA
 ];
 
 // Helper function to convert 24h time to 12h AM/PM format
@@ -384,10 +384,11 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
 
                       return (
                         <div
-                          className="absolute inset-2 rounded flex flex-col items-center justify-center text-white text-xs group"
+                          className="absolute inset-2 rounded flex flex-col items-center justify-center text-xs group"
                           style={{
                             height: `${blockHeight}px`,
                             backgroundColor: sessionColor.bg,
+                            color: sessionColor.text,
                             zIndex: 10,
                             pointerEvents: 'none'
                           }}
@@ -465,9 +466,10 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
                       return (
                         <div
                           key={sessionIdx}
-                          className="text-white rounded p-2 mb-2 group absolute top-2 transition-colors"
+                          className="rounded p-2 mb-2 group absolute top-2 transition-colors"
                           style={{
                             backgroundColor: sessionColor.bg,
+                            color: sessionColor.text,
                             height: `${heightPx - 16}px`,
                             left: `${leftPercent}%`,
                             width: `calc(${widthPercent}% - 8px)`,

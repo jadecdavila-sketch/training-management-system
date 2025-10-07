@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { MapPin, Calendar, AlertCircle } from 'lucide-react';
 import { locationsApi } from '@/services/api';
+import { formatDateString } from '@/utils/dateUtils';
 
 interface Session {
   id: string;
@@ -114,40 +115,61 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
           const requiredTypes = session.locationTypes || [];
           const requiredCapacity = session.groupSizeMax;
 
-          // Try to find a location that matches requirements
-          let matchingLocation = null;
+          // Check if session is off-site or virtual (doesn't need a physical location)
+          const isOffSiteOrVirtual = requiredTypes.some(type =>
+            type.toLowerCase() === 'off-site' || type.toLowerCase() === 'virtual'
+          );
 
-          if (requiredTypes.length > 0) {
-            // Find location with matching type AND adequate capacity
-            matchingLocation = locations.find(l =>
-              requiredTypes.includes(l.type) && l.capacity >= requiredCapacity
+          if (isOffSiteOrVirtual) {
+            // Mark as off-site/virtual - no physical location needed
+            const locationType = requiredTypes.find(type =>
+              type.toLowerCase() === 'off-site' || type.toLowerCase() === 'virtual'
             );
-          } else {
-            // No type required, just find adequate capacity
-            matchingLocation = locations.find(l => l.capacity >= requiredCapacity);
-          }
-
-          if (matchingLocation) {
             assignments.push({
               cohortId: cohort.id,
               sessionId: scheduledSession.sessionId,
-              locationName: matchingLocation.name,
-              locationType: matchingLocation.type,
-              capacity: matchingLocation.capacity,
-              building: matchingLocation.address,
+              locationName: locationType || 'Off-site',
+              locationType: locationType || 'Off-site',
+              capacity: requiredCapacity,
+              building: 'N/A',
               floor: undefined
             });
           } else {
-            // No matching location found
-            unmatched.push({
-              cohortId: cohort.id,
-              sessionId: scheduledSession.sessionId,
-              requiredTypes,
-              requiredCapacity,
-              reason: requiredTypes.length > 0
-                ? `No locations with type ${requiredTypes.join(' or ')} and capacity ${requiredCapacity}+`
-                : `No locations with capacity ${requiredCapacity}+`
-            });
+            // Try to find a location that matches requirements
+            let matchingLocation = null;
+
+            if (requiredTypes.length > 0) {
+              // Find location with matching type AND adequate capacity
+              matchingLocation = locations.find(l =>
+                requiredTypes.includes(l.type) && l.capacity >= requiredCapacity
+              );
+            } else {
+              // No type required, just find adequate capacity
+              matchingLocation = locations.find(l => l.capacity >= requiredCapacity);
+            }
+
+            if (matchingLocation) {
+              assignments.push({
+                cohortId: cohort.id,
+                sessionId: scheduledSession.sessionId,
+                locationName: matchingLocation.name,
+                locationType: matchingLocation.type,
+                capacity: matchingLocation.capacity,
+                building: matchingLocation.address,
+                floor: undefined
+              });
+            } else {
+              // No matching location found
+              unmatched.push({
+                cohortId: cohort.id,
+                sessionId: scheduledSession.sessionId,
+                requiredTypes,
+                requiredCapacity,
+                reason: requiredTypes.length > 0
+                  ? `No locations with type ${requiredTypes.join(' or ')} and capacity ${requiredCapacity}+`
+                  : `No locations with capacity ${requiredCapacity}+`
+              });
+            }
           }
         }
       });
@@ -155,6 +177,13 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
 
     return { assignments, unmatched };
   }, [formData.cohortDetails, formData.scheduledSessions, formData.sessions, locations]);
+
+  // Save assignments to formData whenever they change
+  useEffect(() => {
+    if (assignments.length > 0 && !loading) {
+      updateFormData({ locationAssignments: assignments });
+    }
+  }, [assignments, loading]);
 
   // Group assignments and unmatched by cohort
   const assignmentsByCohort = formData.cohortDetails.map(cohort => ({
@@ -174,10 +203,6 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
     return `${hours12}:${String(minutes).padStart(2, '0')} ${period}`;
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   if (loading) {
     return (
@@ -260,7 +285,7 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
                   <div>
                     <h3 className="font-semibold text-gray-900">{cohort.name}</h3>
                     <p className="text-sm text-gray-600">
-                      Starts: {formatDate(cohort.startDate)}
+                      Starts: {formatDateString(cohort.startDate, { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                 </div>
@@ -299,14 +324,19 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
                         ? 'adequate'
                         : 'warning';
 
+                      const isOffSiteOrVirtual = assignment.locationType?.toLowerCase() === 'off-site' ||
+                                                  assignment.locationType?.toLowerCase() === 'virtual';
+
                       return (
                         <tr key={idx} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="text-sm font-medium text-gray-900">{session?.name}</div>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                Matched
-                              </span>
+                              {!isOffSiteOrVirtual && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  Matched
+                                </span>
+                              )}
                             </div>
                             {session && (
                               <div className="text-xs text-gray-500 mt-0.5">
