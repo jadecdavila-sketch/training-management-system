@@ -8,6 +8,134 @@ import { formatDateTime } from '@/utils/dateUtils';
 
 type TabType = 'sessions' | 'participants';
 
+// Calendar View Component
+const CalendarView = ({ schedules, cohortStartDate, cohortEndDate, onSessionClick }: {
+  schedules: any[];
+  cohortStartDate: string;
+  cohortEndDate: string;
+  onSessionClick: (schedule: any) => void;
+}) => {
+  // Group sessions by date
+  const sessionsByDate = schedules.reduce((acc: Record<string, any[]>, schedule) => {
+    const dateKey = new Date(schedule.startTime).toISOString().split('T')[0];
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(schedule);
+    return acc;
+  }, {});
+
+  // Get all dates in the cohort range
+  const startDate = new Date(cohortStartDate);
+  const endDate = new Date(cohortEndDate);
+  const allDates: Date[] = [];
+
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    allDates.push(new Date(d));
+  }
+
+  // Group dates by week
+  const weeks: Date[][] = [];
+  let currentWeek: Date[] = [];
+
+  allDates.forEach((date, index) => {
+    if (index === 0) {
+      // Add empty cells for days before the first date
+      const dayOfWeek = date.getDay();
+      const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0
+      for (let i = 0; i < offset; i++) {
+        currentWeek.push(null as any);
+      }
+    }
+
+    currentWeek.push(date);
+
+    if (currentWeek.length === 7 || index === allDates.length - 1) {
+      // Fill remaining days with null
+      while (currentWeek.length < 7) {
+        currentWeek.push(null as any);
+      }
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  });
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  return (
+    <div className="bg-white border border-secondary-200 rounded-lg overflow-hidden">
+      {/* Calendar Header */}
+      <div className="grid grid-cols-7 bg-secondary-50 border-b border-secondary-200">
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+          <div key={day} className="px-2 py-3 text-center text-xs font-semibold text-secondary-600 uppercase">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar Grid */}
+      {weeks.map((week, weekIndex) => (
+        <div key={weekIndex} className="grid grid-cols-7 border-b border-secondary-200 last:border-b-0">
+          {week.map((date, dayIndex) => {
+            if (!date) {
+              return <div key={dayIndex} className="min-h-24 bg-secondary-25 border-r border-secondary-200 last:border-r-0" />;
+            }
+
+            const dateKey = date.toISOString().split('T')[0];
+            const daySessions = sessionsByDate[dateKey] || [];
+            const isToday = new Date().toDateString() === date.toDateString();
+
+            return (
+              <div
+                key={dayIndex}
+                className={`min-h-24 border-r border-secondary-200 last:border-r-0 p-2 ${
+                  isToday ? 'bg-teal-50' : 'bg-white'
+                }`}
+              >
+                <div className={`text-right text-sm mb-1 ${
+                  isToday ? 'font-bold text-teal-700' : 'text-secondary-700'
+                }`}>
+                  {date.getDate()}
+                </div>
+
+                <div className="space-y-1">
+                  {daySessions.map((session, idx) => {
+                    const hasIssues = !session.facilitatorId || !session.locationId;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => onSessionClick(session)}
+                        className={`w-full text-left px-1.5 py-1 rounded text-xs transition-all hover:shadow-sm ${
+                          hasIssues
+                            ? 'bg-orange-100 hover:bg-orange-200 text-orange-900 border border-orange-300'
+                            : 'bg-teal-100 hover:bg-teal-200 text-teal-900 border border-teal-300'
+                        }`}
+                      >
+                        <div className="font-medium truncate">
+                          {formatTime(session.startTime)}
+                        </div>
+                        <div className="truncate">
+                          {session.session?.title}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const CohortDetailPage = () => {
   const { cohortId } = useParams();
   const navigate = useNavigate();
@@ -19,6 +147,7 @@ export const CohortDetailPage = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
   const [participantSearch, setParticipantSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   // For now, we'll need to fetch the program and find the cohort
   // TODO: Create a dedicated cohort API endpoint
@@ -316,6 +445,30 @@ export const CohortDetailPage = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-secondary-900">Session Schedule</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
+                    viewMode === 'list'
+                      ? 'border-teal-600 bg-teal-50 text-teal-700'
+                      : 'border-secondary-300 text-secondary-700 hover:bg-secondary-50'
+                  }`}
+                >
+                  <LayoutList className="w-4 h-4" />
+                  List View
+                </button>
+                <button
+                  onClick={() => setViewMode('calendar')}
+                  className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
+                    viewMode === 'calendar'
+                      ? 'border-teal-600 bg-teal-50 text-teal-700'
+                      : 'border-secondary-300 text-secondary-700 hover:bg-secondary-50'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  Calendar View
+                </button>
+              </div>
             </div>
 
             {/* Search and Filter */}
@@ -395,7 +548,7 @@ export const CohortDetailPage = () => {
                     : 'No sessions match your filters'}
                 </p>
               </div>
-            ) : (
+            ) : viewMode === 'list' ? (
               <div className="space-y-3">
                 {filteredSchedules.map((schedule: any) => {
                   const hasIssues = !schedule.facilitatorId || !schedule.locationId;
@@ -461,6 +614,17 @@ export const CohortDetailPage = () => {
                   );
                 })}
               </div>
+            ) : (
+              /* Calendar View */
+              <CalendarView
+                schedules={filteredSchedules}
+                cohortStartDate={cohort.startDate}
+                cohortEndDate={cohort.endDate}
+                onSessionClick={(schedule) => {
+                  setSelectedSchedule(schedule);
+                  setDrawerOpen(true);
+                }}
+              />
             )}
           </div>
         )}
