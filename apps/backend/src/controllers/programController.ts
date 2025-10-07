@@ -127,10 +127,8 @@ export const create = async (req: Request, res: Response) => {
       programName,
       region,
       description,
-      email,
       sessions,
       scheduledSessions,
-      numberOfCohorts,
       cohortDetails,
       facilitatorAssignments,
       locationAssignments,
@@ -482,7 +480,7 @@ export const update = async (req: Request, res: Response) => {
             endDate,
             capacity: cohortData.maxParticipants || 20,
             status: 'scheduled',
-            formData: cohortData.participantFilters ? { participantFilters: cohortData.participantFilters } : null,
+            formData: cohortData.participantFilters ? { participantFilters: cohortData.participantFilters } : undefined,
           },
         });
 

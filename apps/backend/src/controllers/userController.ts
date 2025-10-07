@@ -219,7 +219,7 @@ export const remove = async (req: Request, res: Response) => {
   }
 };
 
-export const getFacilitators = async (req: Request, res: Response) => {
+export const getFacilitators = async (_req: Request, res: Response) => {
   try {
     const facilitators = await prisma.facilitator.findMany({
       select: {
