@@ -30,6 +30,12 @@
 
 Visit http://localhost:3000
 
+## Project Structure
+
+- `apps/backend` - Express.js API server
+- `apps/frontend` - React frontend application
+- `packages/shared` - Shared types and utilities
+
 ## Next Steps
 
 1. Copy code from Claude's artifacts into the empty source files
