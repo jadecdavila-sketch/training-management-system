@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { programsApi } from '@/services/api';
 import { ChevronLeft, Calendar, Users, LayoutList, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
 import { SessionEditDrawer } from '@/components/admin/SessionEditDrawer';
+import { ParticipantDetailDrawer } from '@/components/admin/ParticipantDetailDrawer';
 import { formatDateTime } from '@/utils/dateUtils';
 
 type TabType = 'sessions' | 'participants';
@@ -148,6 +149,8 @@ export const CohortDetailPage = () => {
   const [participantSearch, setParticipantSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [participantDrawerOpen, setParticipantDrawerOpen] = useState(false);
 
   // For now, we'll need to fetch the program and find the cohort
   // TODO: Create a dedicated cohort API endpoint
@@ -736,7 +739,14 @@ export const CohortDetailPage = () => {
                   </thead>
                   <tbody className="divide-y divide-secondary-200">
                     {filteredParticipants.map((enrollment: any) => (
-                      <tr key={enrollment.participantId} className="hover:bg-secondary-50">
+                      <tr
+                        key={enrollment.participantId}
+                        onClick={() => {
+                          setSelectedParticipant(enrollment.participant);
+                          setParticipantDrawerOpen(true);
+                        }}
+                        className="hover:bg-secondary-50 cursor-pointer"
+                      >
                         <td className="px-6 py-4">
                           <div className="text-sm font-medium text-secondary-900">
                             {enrollment.participant.firstName} {enrollment.participant.lastName}
@@ -778,6 +788,21 @@ export const CohortDetailPage = () => {
         programId={program?.id || ''}
         cohortId={cohortId || ''}
       />
+
+      {/* Participant Detail Drawer */}
+      {selectedParticipant && (
+        <ParticipantDetailDrawer
+          open={participantDrawerOpen}
+          onClose={() => {
+            setParticipantDrawerOpen(false);
+            setSelectedParticipant(null);
+          }}
+          participant={selectedParticipant}
+          cohortId={cohortId || ''}
+          cohortName={cohort?.name || ''}
+          programId={program?.id || ''}
+        />
+      )}
     </div>
   );
 };
