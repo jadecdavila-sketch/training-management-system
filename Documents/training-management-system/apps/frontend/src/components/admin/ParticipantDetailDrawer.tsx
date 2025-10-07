@@ -51,8 +51,10 @@ export function ParticipantDetailDrawer({
     enabled: open && !!cohortId && activeTab === 'sessions',
   });
 
-  // Get participant's sessions from the cohort schedules
-  const participantSessions = cohortData?.cohort?.schedules || [];
+  // Get participant's sessions from the cohort schedules and sort chronologically
+  const participantSessions = [...(cohortData?.cohort?.schedules || [])].sort((a: any, b: any) => {
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  });
 
   const handleRemoveFromCohort = async () => {
     // TODO: Implement API call to remove participant from cohort
