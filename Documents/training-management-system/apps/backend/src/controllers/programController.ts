@@ -407,6 +407,42 @@ export const update = async (req: Request, res: Response) => {
     if (description !== undefined) updateData.description = description;
     if (formData) updateData.formData = formData;
 
+    // If formData contains session updates, sync them to the Session table
+    if (formData?.sessions) {
+      const existingSessions = await prisma.session.findMany({
+        where: { programId: id },
+      });
+
+      // Create a map of existing sessions by their original formData ID
+      // We need to match based on order/index since we don't store formData session IDs in Session table
+      const sessionUpdates = formData.sessions.map((sessionData: any, index: number) => {
+        const existingSession = existingSessions[index];
+
+        if (existingSession) {
+          // Update existing session
+          return prisma.session.update({
+            where: { id: existingSession.id },
+            data: {
+              title: sessionData.name,
+              description: sessionData.description || '',
+              groupSizeMin: sessionData.groupSizeMin || 1,
+              groupSizeMax: sessionData.groupSizeMax || 20,
+              participantTypes: sessionData.participantTypes || [],
+              facilitatorSkills: sessionData.facilitatorSkills || [],
+              locationTypes: sessionData.locationTypes || [],
+              requiresFacilitator: sessionData.requiresFacilitator !== false,
+            },
+          });
+        }
+        return null;
+      }).filter(Boolean);
+
+      // Execute all session updates
+      if (sessionUpdates.length > 0) {
+        await Promise.all(sessionUpdates);
+      }
+    }
+
     const program = await prisma.program.update({
       where: { id },
       data: updateData,

@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { MapPin, Calendar, AlertCircle } from 'lucide-react';
 import { locationsApi } from '@/services/api';
-import { formatDateString } from '@/utils/dateUtils';
+import { formatDateString, parseLocalDate } from '@/utils/dateUtils';
 
 interface Session {
   id: string;
@@ -51,7 +51,17 @@ interface UnmatchedSession {
   reason: string;
 }
 
+interface Block {
+  id: string;
+  name: string;
+  numberOfSessions: number;
+  duration: number;
+}
+
 interface FormData {
+  useBlocks: boolean;
+  blocks: Block[];
+  blockDelays: Record<string, number>;
   sessions: Session[];
   scheduledSessions: ScheduledSession[];
   cohortDetails: CohortDetail[];
@@ -69,6 +79,53 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
   const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string; capacity: number; address?: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to calculate actual date from scheduled session
+  const calculateSessionDate = (scheduledSession: ScheduledSession, cohortStartDate: string): string => {
+    // Build timeline accounting for block delays
+    const buildTimeline = () => {
+      if (!formData.useBlocks) {
+        return [{ blockId: null, startWeek: 0 }];
+      }
+
+      const timeline: Array<{ blockId: string; startWeek: number }> = [];
+      let currentWeek = 0;
+
+      formData.blocks.forEach((block, index) => {
+        if (index > 0) {
+          const delay = formData.blockDelays[block.id] || 0;
+          currentWeek += delay;
+        }
+        timeline.push({ blockId: block.id, startWeek: currentWeek });
+        currentWeek += block.duration;
+      });
+
+      return timeline;
+    };
+
+    const timeline = buildTimeline();
+    const baseStartDate = parseLocalDate(cohortStartDate);
+
+    // Find the first Monday
+    const cohortStartDay = baseStartDate.getDay();
+    const daysUntilMonday = cohortStartDay === 0 ? 1 : cohortStartDay === 1 ? 0 : (8 - cohortStartDay);
+    const firstMonday = new Date(baseStartDate);
+    firstMonday.setDate(firstMonday.getDate() + daysUntilMonday);
+
+    // Get absolute week
+    const blockInfo = timeline.find(t => t.blockId === scheduledSession.blockId);
+    const blockStartWeek = blockInfo?.startWeek || 0;
+    const absoluteStartWeek = blockStartWeek + scheduledSession.startWeek;
+
+    // Calculate date
+    const dayMap: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+    const startDayIndex = dayMap[scheduledSession.startDay] ?? 0;
+
+    const sessionDate = new Date(firstMonday);
+    sessionDate.setDate(sessionDate.getDate() + (absoluteStartWeek * 7) + startDayIndex);
+
+    return sessionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   // Fetch locations from the database
   useEffect(() => {
@@ -350,7 +407,7 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
                                   <span>
-                                    Week {scheduledSession.startWeek + 1}, {scheduledSession.startDay} {formatTime12Hour(scheduledSession.startTime)}
+                                    {calculateSessionDate(scheduledSession, cohort.startDate)} at {formatTime12Hour(scheduledSession.startTime)}
                                   </span>
                                 </div>
                               </div>
@@ -407,7 +464,7 @@ export function Step9Locations({ formData, updateFormData, onNext, onBack }: Ste
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
                                   <span>
-                                    Week {scheduledSession.startWeek + 1}, {scheduledSession.startDay} {formatTime12Hour(scheduledSession.startTime)}
+                                    {calculateSessionDate(scheduledSession, cohort.startDate)} at {formatTime12Hour(scheduledSession.startTime)}
                                   </span>
                                 </div>
                               </div>

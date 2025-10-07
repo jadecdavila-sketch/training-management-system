@@ -124,11 +124,49 @@ export function Step10ProgramSummary({ formData, onBack, programId, isEditMode, 
       };
       updateProgramMutation.mutate(updateData);
     } else {
+      // Build a timeline that accounts for block delays
+      const buildTimeline = () => {
+        if (!formData.useBlocks) {
+          return [{ blockId: null, startWeek: 0 }];
+        }
+
+        const timeline: Array<{ blockId: string; startWeek: number }> = [];
+        let currentWeek = 0;
+
+        formData.blocks.forEach((block, index) => {
+          // Add delay before this block (if not first block)
+          if (index > 0) {
+            const delay = formData.blockDelays[block.id] || 0;
+            currentWeek += delay;
+          }
+
+          // Record where this block starts
+          timeline.push({
+            blockId: block.id,
+            startWeek: currentWeek
+          });
+
+          // Move forward by block duration
+          currentWeek += block.duration;
+        });
+
+        return timeline;
+      };
+
+      const timeline = buildTimeline();
+
       // Transform scheduledSessions from relative (week/day/time) to absolute timestamps
       // Use the first cohort's start date as the base
       const baseStartDate = formData.cohortDetails[0]?.startDate
         ? parseLocalDate(formData.cohortDetails[0].startDate)
         : new Date();
+
+      // Find the Monday of the week containing the cohort start date (or the next Monday)
+      const cohortStartDay = baseStartDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+      const daysUntilMonday = cohortStartDay === 0 ? 1 : cohortStartDay === 1 ? 0 : (8 - cohortStartDay); // Days until next Monday
+
+      const firstMonday = new Date(baseStartDate);
+      firstMonday.setDate(firstMonday.getDate() + daysUntilMonday);
 
       const transformedScheduledSessions = formData.scheduledSessions.map(session => {
         // Convert day name to day index (Mon=0, Tue=1, etc.)
@@ -136,17 +174,25 @@ export function Step10ProgramSummary({ formData, onBack, programId, isEditMode, 
         const startDayIndex = dayMap[session.startDay] ?? 0;
         const endDayIndex = dayMap[session.endDay] ?? 0;
 
-        // Calculate start timestamp: base date + (startWeek * 7 days) + startDayIndex
-        const startDate = new Date(baseStartDate);
-        startDate.setDate(startDate.getDate() + (session.startWeek * 7) + startDayIndex);
+        // Find the absolute start week for this block
+        const blockInfo = timeline.find(t => t.blockId === session.blockId);
+        const blockStartWeek = blockInfo?.startWeek || 0;
+
+        // Calculate absolute week: block start + session's relative week within block
+        const absoluteStartWeek = blockStartWeek + session.startWeek;
+        const absoluteEndWeek = blockStartWeek + session.endWeek;
+
+        // Calculate start timestamp: first Monday + (absoluteStartWeek * 7 days) + startDayIndex
+        const startDate = new Date(firstMonday);
+        startDate.setDate(startDate.getDate() + (absoluteStartWeek * 7) + startDayIndex);
 
         // Parse time (e.g., "09:00") and set it
         const [startHours, startMinutes] = session.startTime.split(':').map(Number);
         startDate.setHours(startHours, startMinutes, 0, 0);
 
         // Calculate end timestamp
-        const endDate = new Date(baseStartDate);
-        endDate.setDate(endDate.getDate() + (session.endWeek * 7) + endDayIndex);
+        const endDate = new Date(firstMonday);
+        endDate.setDate(endDate.getDate() + (absoluteEndWeek * 7) + endDayIndex);
         const [endHours, endMinutes] = session.endTime.split(':').map(Number);
         endDate.setHours(endHours, endMinutes, 0, 0);
 
