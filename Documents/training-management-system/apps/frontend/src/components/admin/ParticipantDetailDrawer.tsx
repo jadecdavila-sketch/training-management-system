@@ -35,8 +35,24 @@ export function ParticipantDetailDrawer({
     enabled: showMoveModal,
   });
 
-  // Get participant's sessions from schedules
-  const participantSessions = participant?.enrollments?.[0]?.cohort?.schedules || [];
+  // Fetch cohort data with schedules to display participant's sessions
+  const { data: cohortData } = useQuery({
+    queryKey: ['cohort', cohortId],
+    queryFn: async () => {
+      const allPrograms = await programsApi.getAll({ page: 1, pageSize: 100 });
+      for (const program of allPrograms.data) {
+        const cohort = program.cohorts?.find((c: any) => c.id === cohortId);
+        if (cohort) {
+          return { program, cohort };
+        }
+      }
+      return null;
+    },
+    enabled: open && !!cohortId && activeTab === 'sessions',
+  });
+
+  // Get participant's sessions from the cohort schedules
+  const participantSessions = cohortData?.cohort?.schedules || [];
 
   const handleRemoveFromCohort = async () => {
     // TODO: Implement API call to remove participant from cohort
@@ -178,9 +194,23 @@ export function ParticipantDetailDrawer({
           ) : (
             /* Sessions Tab */
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-secondary-900">Scheduled Sessions</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-secondary-900">Scheduled Sessions</h3>
+                <p className="text-xs text-secondary-600">
+                  {participantSessions.length} {participantSessions.length === 1 ? 'session' : 'sessions'}
+                </p>
+              </div>
 
-              {participantSessions.length === 0 ? (
+              <p className="text-sm text-secondary-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                This participant is scheduled for all cohort sessions that match their profile and the session's participant type filters.
+              </p>
+
+              {!cohortData ? (
+                <div className="text-center py-12 bg-secondary-50 rounded-lg">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto mb-3"></div>
+                  <p className="text-secondary-600">Loading sessions...</p>
+                </div>
+              ) : participantSessions.length === 0 ? (
                 <div className="text-center py-12 bg-secondary-50 rounded-lg">
                   <Calendar className="w-12 h-12 text-secondary-400 mx-auto mb-3" />
                   <p className="text-secondary-600">No sessions scheduled</p>
