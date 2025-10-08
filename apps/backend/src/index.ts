@@ -19,8 +19,14 @@ const PORT = process.env.PORT || 4000;
 // Middleware
 app.use(helmet());
 
-// Log CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+// Log CORS configuration and normalize origins
+const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']).map(origin => {
+  // Add https:// if missing
+  if (origin && !origin.startsWith('http')) {
+    return `https://${origin}`;
+  }
+  return origin;
+});
 console.log('CORS Configuration:', {
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
   allowedOrigins,
