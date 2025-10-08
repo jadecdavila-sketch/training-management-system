@@ -24,7 +24,7 @@ services:
       - key: PORT
         value: 10000
       - key: ALLOWED_ORIGINS
-        value: https://tms-frontend.onrender.com
+        value: https://tms-frontend-nnh5.onrender.com
 
   # Frontend
   - type: web

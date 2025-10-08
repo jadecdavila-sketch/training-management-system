@@ -1,3 +1,5 @@
+import { parseLocalDate } from './dateUtils';
+
 interface Participant {
   department?: string;
   jobTitle?: string;
@@ -43,10 +45,10 @@ export function filterParticipantsByCascade(
     // Level 2: Cohort employee start date range filter (if set)
     if (cohortFilters?.employeeStartDateFrom || cohortFilters?.employeeStartDateTo) {
       if (participant.hireDate) {
-        const hireDate = new Date(participant.hireDate);
+        const hireDate = parseLocalDate(participant.hireDate);
 
         if (cohortFilters.employeeStartDateFrom) {
-          const fromDate = new Date(cohortFilters.employeeStartDateFrom);
+          const fromDate = parseLocalDate(cohortFilters.employeeStartDateFrom);
           if (hireDate < fromDate) {
             console.log(`Participant ${participant.firstName} excluded: hireDate ${hireDate.toISOString()} < ${fromDate.toISOString()}`);
             return false;
@@ -54,7 +56,7 @@ export function filterParticipantsByCascade(
         }
 
         if (cohortFilters.employeeStartDateTo) {
-          const toDate = new Date(cohortFilters.employeeStartDateTo);
+          const toDate = parseLocalDate(cohortFilters.employeeStartDateTo);
           if (hireDate > toDate) {
             console.log(`Participant ${participant.firstName} excluded: hireDate ${hireDate.toISOString()} > ${toDate.toISOString()}`);
             return false;
