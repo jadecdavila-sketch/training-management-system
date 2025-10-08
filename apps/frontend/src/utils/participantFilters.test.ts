@@ -58,6 +58,35 @@ describe('filterParticipantsByCascade', () => {
   });
 
   describe('Level 2: Cohort date range filter', () => {
+    it('CRITICAL: excludes Sept 30 from Oct 1 cohort (timezone boundary bug)', () => {
+      const participants = [
+        {
+          department: 'Engineering',
+          jobTitle: 'Engineer',
+          location: 'North America',
+          hireDate: '2025-09-30',
+          firstName: 'Alex Thompson'
+        },
+        {
+          department: 'Engineering',
+          jobTitle: 'Engineer',
+          location: 'North America',
+          hireDate: '2025-10-01',
+          firstName: 'Lisa Anderson'
+        }
+      ];
+
+      const result = filterParticipantsByCascade(
+        participants,
+        undefined,
+        { employeeStartDateFrom: '2025-10-01', employeeStartDateTo: '2025-10-31' }
+      );
+
+      // Only Lisa (Oct 1) should be included, not Alex (Sept 30)
+      expect(result).toHaveLength(1);
+      expect(result[0].firstName).toBe('Lisa Anderson');
+    });
+
     it('filters by hire date range (Oct 2025)', () => {
       const result = filterParticipantsByCascade(
         mockParticipants,
