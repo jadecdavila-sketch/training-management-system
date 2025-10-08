@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 
 const router = Router();
 
-router.post('/run', async (req, res) => {
+router.post('/run', async (_req, res) => {
   try {
     console.log('Seeding database...');
 
@@ -53,17 +53,22 @@ router.post('/run', async (req, res) => {
 
     // Create locations
     const locations = [
-      { name: 'Main Office - Room 101', type: 'Physical', capacity: 20, building: 'HQ', floor: '1' },
-      { name: 'Main Office - Room 202', type: 'Physical', capacity: 15, building: 'HQ', floor: '2' },
-      { name: 'Zoom Meeting Room', type: 'Virtual', capacity: 50 },
+      { name: 'Main Office - Room 101', type: 'Physical', capacity: 20, address: 'HQ Building, Floor 1', equipment: [] },
+      { name: 'Main Office - Room 202', type: 'Physical', capacity: 15, address: 'HQ Building, Floor 2', equipment: [] },
+      { name: 'Zoom Meeting Room', type: 'Virtual', capacity: 50, equipment: [] },
     ];
 
     for (const loc of locations) {
-      await prisma.location.upsert({
-        where: { name: loc.name },
-        update: {},
-        create: loc,
+      // Check if location already exists
+      const existing = await prisma.location.findFirst({
+        where: { name: loc.name }
       });
+
+      if (!existing) {
+        await prisma.location.create({
+          data: loc,
+        });
+      }
     }
 
     // Create sample participants
