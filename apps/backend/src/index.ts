@@ -18,8 +18,16 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(helmet());
+
+// Log CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+console.log('CORS Configuration:', {
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+  allowedOrigins,
+});
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json());
