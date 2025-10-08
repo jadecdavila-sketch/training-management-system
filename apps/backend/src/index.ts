@@ -22,19 +22,35 @@ app.use(helmet());
 // Log CORS configuration and normalize origins
 const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']).map(origin => {
   // Add https:// if missing
-  if (origin && !origin.startsWith('http')) {
-    return `https://${origin}`;
+  const trimmed = origin.trim();
+  if (trimmed && !trimmed.startsWith('http')) {
+    return `https://${trimmed}`;
   }
-  return origin;
+  return trimmed;
 });
 console.log('CORS Configuration:', {
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
   allowedOrigins,
+  NODE_ENV: process.env.NODE_ENV
 });
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    console.log('CORS request from origin:', origin);
+    // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.error('CORS blocked origin:', origin, 'Allowed:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
