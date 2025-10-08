@@ -337,6 +337,7 @@ export const create = async (req: Request, res: Response) => {
         // Level 1: Program region filter
         if (programRegion && programRegion !== 'Global') {
           if (participant.location !== programRegion) {
+            console.log(`Excluded ${participant.firstName} ${participant.lastName}: location ${participant.location} !== ${programRegion}`);
             return false;
           }
         }
@@ -348,14 +349,24 @@ export const create = async (req: Request, res: Response) => {
 
             if (cohortFilters.employeeStartDateFrom) {
               const fromDate = parseLocalDate(cohortFilters.employeeStartDateFrom);
-              if (hireDate < fromDate) return false;
+              console.log(`Checking ${participant.firstName} ${participant.lastName}: hireDate ${hireDate.toISOString().split('T')[0]} >= fromDate ${cohortFilters.employeeStartDateFrom}`);
+              if (hireDate < fromDate) {
+                console.log(`  -> EXCLUDED: hire date before range`);
+                return false;
+              }
             }
 
             if (cohortFilters.employeeStartDateTo) {
               const toDate = parseLocalDate(cohortFilters.employeeStartDateTo);
-              if (hireDate > toDate) return false;
+              console.log(`Checking ${participant.firstName} ${participant.lastName}: hireDate ${hireDate.toISOString().split('T')[0]} <= toDate ${cohortFilters.employeeStartDateTo}`);
+              if (hireDate > toDate) {
+                console.log(`  -> EXCLUDED: hire date after range`);
+                return false;
+              }
             }
+            console.log(`  -> INCLUDED`);
           } else {
+            console.log(`Excluded ${participant.firstName} ${participant.lastName}: no hire date but filter is set`);
             return false; // Exclude if no hireDate but filter is set
           }
         }
