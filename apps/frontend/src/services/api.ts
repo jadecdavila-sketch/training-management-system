@@ -1,29 +1,40 @@
-import { 
-  Participant, 
-  CreateParticipantDto, 
+import {
+  Participant,
+  CreateParticipantDto,
   UpdateParticipantDto,
   Location,
   CreateLocationDto,
   UpdateLocationDto,
   User,
-  PaginatedResponse 
+  PaginatedResponse
 } from '@tms/shared';
+import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
 
-// Generic fetch wrapper
+// Generic fetch wrapper with auth token
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
+  // Get token from auth store
+  const token = useAuthStore.getState().accessToken;
+
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
   });
 
   if (!response.ok) {
+    // Handle 401 unauthorized - clear auth and redirect to login
+    if (response.status === 401) {
+      useAuthStore.getState().clearAuth();
+      window.location.href = '/login';
+    }
+
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');
   }

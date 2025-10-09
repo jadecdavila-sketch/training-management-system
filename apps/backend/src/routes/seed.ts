@@ -1,15 +1,22 @@
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
 import bcrypt from 'bcrypt';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
+
+// Only ADMIN can run seed (or allow in development without auth)
+if (process.env.NODE_ENV === 'production') {
+  router.use(requireAuth);
+  router.use(requireRole('ADMIN'));
+}
 
 router.post('/run', async (_req, res) => {
   try {
     console.log('Seeding database...');
 
     // Create admin user
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    const adminPassword = await bcrypt.hash('admin123', 12);
     await prisma.user.upsert({
       where: { email: 'admin@tms.com' },
       update: {},
@@ -29,7 +36,7 @@ router.post('/run', async (_req, res) => {
     ];
 
     for (const fac of facilitatorData) {
-      const password = await bcrypt.hash('password123', 10);
+      const password = await bcrypt.hash('password123', 12);
       const user = await prisma.user.upsert({
         where: { email: fac.email },
         update: {},

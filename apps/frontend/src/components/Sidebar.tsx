@@ -1,7 +1,15 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 
 export const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, clearAuth } = useAuthStore();
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate('/login');
+  };
 
   const navItems = [
     {
@@ -62,6 +70,13 @@ export const Sidebar = () => {
 
   return (
     <div className="w-16 bg-primary-500 flex flex-col items-center py-6 gap-6">
+      {/* User info at top */}
+      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary-500 font-bold text-sm" title={user?.name || 'User'}>
+        {user?.name?.charAt(0).toUpperCase() || 'U'}
+      </div>
+
+      <div className="h-px w-10 bg-primary-400" />
+
       {/* Nav Items */}
       {navItems.map((item) => (
         <Link
@@ -77,6 +92,21 @@ export const Sidebar = () => {
           {item.icon}
         </Link>
       ))}
+
+      {/* Logout button at bottom */}
+      <div className="mt-auto">
+        <button
+          onClick={handleLogout}
+          className="w-10 h-10 rounded-lg flex items-center justify-center text-white hover:bg-primary-600 transition-colors"
+          title="Logout"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
 import participantRoutes from './routes/participants.js';
 import userRoutes from './routes/users.js';
 import locationRoutes from './routes/locations.js';
@@ -10,6 +11,7 @@ import scheduleRoutes from './routes/schedules.js';
 import cohortEnrollmentRoutes from './routes/cohortEnrollments.js';
 import seedRoutes from './routes/seed.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 dotenv.config();
 
@@ -54,7 +56,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Apply general API rate limiting to all routes
+app.use('/api', apiLimiter);
+
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/participants', participantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/locations', locationRoutes);
