@@ -12,6 +12,8 @@ import cohortEnrollmentRoutes from './routes/cohortEnrollments.js';
 import seedRoutes from './routes/seed.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import { logger } from './lib/logger.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 dotenv.config();
 
@@ -20,6 +22,7 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(helmet());
+app.use(requestLogger);
 
 // Log CORS configuration and normalize origins
 const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']).map(origin => {
@@ -30,15 +33,14 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS?.split(',') || ['http://loca
   }
   return trimmed;
 });
-console.log('CORS Configuration:', {
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
+logger.info('CORS Configuration', {
   allowedOrigins,
-  NODE_ENV: process.env.NODE_ENV
+  nodeEnv: process.env.NODE_ENV,
 });
 
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('CORS request from origin:', origin);
+    logger.debug('CORS request', { origin });
     // Allow requests with no origin (like mobile apps, Postman, or same-origin)
     if (!origin) {
       return callback(null, true);
@@ -46,7 +48,7 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.error('CORS blocked origin:', origin, 'Allowed:', allowedOrigins);
+      logger.warn('CORS blocked origin', { origin, allowedOrigins });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -78,5 +80,8 @@ app.get('/health', (_, res) => {
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT}`, {
+    port: PORT,
+    nodeEnv: process.env.NODE_ENV,
+  });
 });
