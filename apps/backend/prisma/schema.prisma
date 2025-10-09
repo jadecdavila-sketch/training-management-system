@@ -25,6 +25,7 @@ model User {
 
   facilitatorProfile Facilitator?
 
+  @@index([role]) // Index for filtering users by role
   @@map("users")
 }
 
@@ -43,6 +44,13 @@ model Participant {
 
   cohorts    CohortParticipant[]
 
+  // Indexes for common queries
+  @@index([hireDate])
+  @@index([location])
+  @@index([department])
+  @@index([status])
+  @@index([location, hireDate]) // Composite index for filtering by region AND hire date
+  @@index([department, hireDate]) // Composite index for filtering by department AND hire date
   @@map("participants")
 }
 
@@ -89,6 +97,8 @@ model Program {
   sessions    Session[]
   cohorts     Cohort[]
 
+  @@index([archived]) // Index for filtering active vs archived programs
+  @@index([createdAt]) // Index for sorting by creation date
   @@map("programs")
 }
 
@@ -131,6 +141,10 @@ model Cohort {
   participants CohortParticipant[]
   schedules    Schedule[]
 
+  @@index([programId]) // Index for fetching all cohorts in a program
+  @@index([startDate]) // Index for sorting cohorts by start date
+  @@index([status]) // Index for filtering by status
+  @@index([programId, startDate]) // Composite for fetching program cohorts in chronological order
   @@map("cohorts")
 }
 
@@ -163,5 +177,14 @@ model Schedule {
   facilitator   Facilitator? @relation(fields: [facilitatorId], references: [id])
   location      Location?    @relation(fields: [locationId], references: [id])
 
+  // Indexes for common schedule queries
+  @@index([cohortId])
+  @@index([sessionId])
+  @@index([facilitatorId])
+  @@index([locationId])
+  @@index([startTime])
+  @@index([status])
+  @@index([cohortId, startTime]) // Composite for fetching cohort schedules in chronological order
+  @@index([facilitatorId, startTime]) // Composite for facilitator availability queries
   @@map("schedules")
 }
