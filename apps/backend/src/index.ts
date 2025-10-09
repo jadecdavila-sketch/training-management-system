@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import participantRoutes from './routes/participants.js';
 import userRoutes from './routes/users.js';
@@ -14,6 +15,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { logger } from './lib/logger.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { getCsrfToken, setCsrfToken } from './middleware/csrf.js';
 
 dotenv.config();
 
@@ -54,12 +56,16 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // Apply general API rate limiting to all routes
 app.use('/api', apiLimiter);
+
+// CSRF token endpoint (should be called before authenticated requests)
+app.get('/api/csrf-token', setCsrfToken, getCsrfToken);
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -14,16 +14,64 @@ const API_BASE = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/api`
   : '/api';
 
-// Generic fetch wrapper with auth token
+// CSRF token management
+let csrfToken: string | null = null;
+
+// Get CSRF token from cookie
+function getCsrfTokenFromCookie(): string | null {
+  const name = 'csrf-token-value=';
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    cookie = cookie.trim();
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length);
+    }
+  }
+  return null;
+}
+
+// Fetch CSRF token from server
+async function fetchCsrfToken(): Promise<string> {
+  const response = await fetch(`${API_BASE}/csrf-token`, {
+    credentials: 'include',
+  });
+  const data = await response.json();
+  csrfToken = data.csrfToken;
+  return csrfToken!;
+}
+
+// Get CSRF token (from memory, cookie, or fetch from server)
+async function getCsrfToken(): Promise<string> {
+  if (csrfToken) return csrfToken;
+
+  const cookieToken = getCsrfTokenFromCookie();
+  if (cookieToken) {
+    csrfToken = cookieToken;
+    return csrfToken;
+  }
+
+  return fetchCsrfToken();
+}
+
+// Generic fetch wrapper with auth token and CSRF protection
 async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
   // Get token from auth store
   const token = useAuthStore.getState().accessToken;
 
+  // Get CSRF token for state-changing operations
+  let csrfHeader = {};
+  if (options?.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
+    const csrf = await getCsrfToken();
+    csrfHeader = { 'X-CSRF-Token': csrf };
+  }
+
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
+    credentials: 'include', // Include cookies for CSRF
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...csrfHeader,
       ...options?.headers,
     },
   });
