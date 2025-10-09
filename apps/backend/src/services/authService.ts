@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { ConflictError, UnauthorizedError, NotFoundError } from '../lib/errors.js';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -29,7 +30,7 @@ export const authService = {
     });
 
     if (existingUser) {
-      throw new Error('User already exists');
+      throw new ConflictError('User already exists');
     }
 
     // Hash password with bcrypt (work factor 12)
@@ -69,14 +70,14 @@ export const authService = {
     });
 
     if (!user || !user.password) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedError('Invalid credentials');
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedError('Invalid credentials');
     }
 
     // Generate tokens
@@ -101,7 +102,7 @@ export const authService = {
       const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
       return decoded;
     } catch (error) {
-      throw new Error('Invalid or expired token');
+      throw new UnauthorizedError('Invalid or expired token');
     }
   },
 
@@ -142,7 +143,7 @@ export const authService = {
       });
 
       if (!user) {
-        throw new Error('User not found');
+        throw new NotFoundError('User not found');
       }
 
       // Generate new tokens
@@ -158,7 +159,10 @@ export const authService = {
         ...tokens,
       };
     } catch (error) {
-      throw new Error('Invalid refresh token');
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new UnauthorizedError('Invalid refresh token');
     }
   },
 
@@ -179,7 +183,7 @@ export const authService = {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundError('User not found');
     }
 
     return user;

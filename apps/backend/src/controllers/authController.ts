@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/authService.js';
 
 export const authController = {
@@ -6,7 +6,7 @@ export const authController = {
    * POST /api/auth/register
    * Register a new user
    */
-  async register(req: Request, res: Response) {
+  async register(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password, name, role } = req.body;
 
@@ -17,18 +17,8 @@ export const authController = {
         data: result,
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'User already exists') {
-        return res.status(409).json({
-          success: false,
-          error: error.message,
-        });
-      }
-
-      console.error('Register error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to register user',
-      });
+      // Pass error to error handler middleware
+      next(error);
     }
   },
 
@@ -36,7 +26,7 @@ export const authController = {
    * POST /api/auth/login
    * Login with email and password
    */
-  async login(req: Request, res: Response) {
+  async login(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, password } = req.body;
 
@@ -47,18 +37,7 @@ export const authController = {
         data: result,
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Invalid credentials') {
-        return res.status(401).json({
-          success: false,
-          error: error.message,
-        });
-      }
-
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to login',
-      });
+      next(error);
     }
   },
 
@@ -66,16 +45,9 @@ export const authController = {
    * POST /api/auth/refresh
    * Refresh access token using refresh token
    */
-  async refresh(req: Request, res: Response) {
+  async refresh(req: Request, res: Response, next: NextFunction) {
     try {
       const { refreshToken } = req.body;
-
-      if (!refreshToken) {
-        return res.status(400).json({
-          success: false,
-          error: 'Refresh token required',
-        });
-      }
 
       const result = await authService.refreshAccessToken(refreshToken);
 
@@ -84,18 +56,7 @@ export const authController = {
         data: result,
       });
     } catch (error) {
-      if (error instanceof Error && error.message === 'Invalid refresh token') {
-        return res.status(401).json({
-          success: false,
-          error: error.message,
-        });
-      }
-
-      console.error('Refresh error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to refresh token',
-      });
+      next(error);
     }
   },
 
@@ -103,7 +64,7 @@ export const authController = {
    * GET /api/auth/me
    * Get current user info (requires authentication)
    */
-  async me(req: Request, res: Response) {
+  async me(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
         return res.status(401).json({
@@ -119,11 +80,7 @@ export const authController = {
         data: user,
       });
     } catch (error) {
-      console.error('Get user error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get user',
-      });
+      next(error);
     }
   },
 
