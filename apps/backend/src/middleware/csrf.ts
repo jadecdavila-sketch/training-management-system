@@ -84,7 +84,7 @@ export const setCsrfToken = (req: Request, res: Response, next: NextFunction) =>
  */
 export const validateCsrfToken = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   // Skip CSRF validation for safe methods

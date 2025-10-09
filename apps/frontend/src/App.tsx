@@ -11,6 +11,8 @@ import { ProgramCohortsPage } from './pages/admin/ProgramCohortsPage';
 import { CohortDetailPage } from './pages/admin/CohortDetailPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { ErrorTestPage } from './pages/admin/ErrorTestPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,11 +25,12 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<LoginPage />} />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Routes>
+            {/* Public route */}
+            <Route path="/login" element={<LoginPage />} />
 
           {/* Protected routes */}
           <Route
@@ -67,11 +70,13 @@ function App() {
               />
 
               <Route path="design-system" element={<DesignSystemPage />} />
+              <Route path="error-test" element={<ErrorTestPage />} />
             </Route>
           </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
