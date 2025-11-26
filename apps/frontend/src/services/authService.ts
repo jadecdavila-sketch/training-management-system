@@ -45,7 +45,7 @@ async function getCsrfToken(): Promise<string> {
   const cookieToken = getCsrfTokenFromCookie();
   if (cookieToken) return cookieToken;
 
-  const response = await fetch(`${API_URL}/csrf-token`, {
+  const response = await fetch(`${API_URL}/api/csrf-token`, {
     credentials: 'include',
   });
   const data = await response.json();
@@ -55,7 +55,7 @@ async function getCsrfToken(): Promise<string> {
 export const authService = {
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     const csrfToken = await getCsrfToken();
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -70,7 +70,7 @@ export const authService = {
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
     const csrfToken = await getCsrfToken();
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${API_URL}/api/auth/register`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -84,7 +84,7 @@ export const authService = {
   },
 
   async getMe(token: string): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const response = await fetch(`${API_URL}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -94,7 +94,7 @@ export const authService = {
   },
 
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
-    const response = await fetch(`${API_URL}/auth/refresh`, {
+    const response = await fetch(`${API_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -3,7 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import passport from './config/passport.js';
+import { sessionConfig } from './config/session.js';
+import { validateEnvironment } from './config/validateEnv.js';
 import authRoutes from './routes/auth.js';
+import samlAuthRoutes from './routes/saml-auth.js';
 import participantRoutes from './routes/participants.js';
 import userRoutes from './routes/users.js';
 import locationRoutes from './routes/locations.js';
@@ -17,7 +21,11 @@ import { logger } from './lib/logger.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { getCsrfToken, setCsrfToken } from './middleware/csrf.js';
 
+// Load environment variables
 dotenv.config();
+
+// Validate environment configuration before starting server
+validateEnvironment();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -61,6 +69,13 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Session middleware (for SSO)
+app.use(sessionConfig);
+
+// Initialize Passport for SSO
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Apply general API rate limiting to all routes
 app.use('/api', apiLimiter);
 
@@ -68,7 +83,8 @@ app.use('/api', apiLimiter);
 app.get('/api/csrf-token', setCsrfToken, getCsrfToken);
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes); // Original JWT auth (register/login)
+app.use('/auth/saml', samlAuthRoutes); // SAML SSO routes
 app.use('/api/participants', participantRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/locations', locationRoutes);

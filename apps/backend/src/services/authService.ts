@@ -1,11 +1,21 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../lib/errors.js';
+import { prisma } from '../lib/prisma.js';
 
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '15m';
+// Validate JWT_SECRET
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+if (process.env.NODE_ENV === 'production' && JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters in production');
+}
+if (JWT_SECRET === 'your-secret-key-change-in-production' || JWT_SECRET === 'your-super-secret-jwt-key-change-this-min-32-characters') {
+  throw new Error('JWT_SECRET must be changed from default value');
+}
+
+const JWT_EXPIRES_IN = '8h'; // Changed from 15m to 8h for better UX
 const REFRESH_TOKEN_EXPIRES_IN = '7d';
 
 export interface TokenPayload {
@@ -177,6 +187,8 @@ export const authService = {
         email: true,
         name: true,
         role: true,
+        ssoProvider: true,
+        lastLoginAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -184,6 +196,46 @@ export const authService = {
 
     if (!user) {
       throw new NotFoundError('User not found');
+    }
+
+    return user;
+  },
+
+  /**
+   * Generate tokens from SSO user (after SAML authentication)
+   */
+  generateTokensFromSSOUser(user: any) {
+    return this.generateTokens(user.id, user.email, user.role);
+  },
+
+  /**
+   * Find or create SSO user (for external auth providers like Auth0)
+   * This is for future Auth0 integration compatibility
+   */
+  async findOrCreateSSOUser(email: string, name: string, ssoProvider: string, ssoId: string, role: string = 'FACILITATOR') {
+    let user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          name,
+          role: role as any,
+          ssoProvider,
+          ssoId,
+          lastLoginAt: new Date(),
+        },
+      });
+    } else {
+      // Update SSO info if changed
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          ssoProvider,
+          ssoId,
+          lastLoginAt: new Date(),
+        },
+      });
     }
 
     return user;
