@@ -19,13 +19,21 @@ model User {
   email     String   @unique
   name      String
   role      UserRole
-  password  String?
+  password  String?  // Optional for SSO users
+
+  // SSO fields
+  ssoProvider String?  // 'saml', 'oidc', 'azure-ad', 'okta', null for local auth
+  ssoId       String?  // External identity provider user ID (nameID from SAML)
+  lastLoginAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   facilitatorProfile Facilitator?
 
-  @@index([role]) // Index for filtering users by role
+  @@index([role])
+  @@index([ssoProvider])
+  @@unique([ssoProvider, ssoId]) // Unique combo for SSO users
   @@map("users")
 }
 
@@ -187,4 +195,43 @@ model Schedule {
   @@index([cohortId, startTime]) // Composite for fetching cohort schedules in chronological order
   @@index([facilitatorId, startTime]) // Composite for facilitator availability queries
   @@map("schedules")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  timestamp     DateTime @default(now())
+
+  // Event information
+  eventType     String   // LOGIN, LOGOUT, AUTH_FAILURE, CREATE, UPDATE, DELETE, EXPORT, IMPORT
+  action        String   // Specific action taken (e.g., "DELETE_PROGRAM", "UPDATE_PARTICIPANT")
+  outcome       String   // SUCCESS, FAILURE, DENIED
+
+  // User information
+  userId        String?
+  userEmail     String?
+  userRole      String?
+
+  // Resource information
+  resourceType  String?  // Program, Participant, User, Location, etc.
+  resourceId    String?
+  resourceName  String?
+
+  // Request details
+  ipAddress     String?
+  userAgent     String?
+  requestPath   String?
+  requestMethod String?  // GET, POST, PUT, DELETE
+  statusCode    Int?
+
+  // Additional context
+  metadata      Json?    // Flexible field for extra data
+  errorMessage  String?
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([eventType])
+  @@index([resourceType])
+  @@index([outcome])
+  @@index([timestamp, eventType]) // Composite for time-series queries by type
+  @@map("audit_logs")
 }

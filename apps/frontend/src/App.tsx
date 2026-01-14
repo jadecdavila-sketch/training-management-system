@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AuthProviderComponent } from './contexts/AuthContext';
 import { ParticipantsPage } from './pages/admin/ParticipantsPage';
 import { Layout } from './components/Layout';
 import { DesignSystemPage } from './pages/DesignSystemPage';
@@ -9,10 +10,10 @@ import { ProgramsPage } from './pages/admin/ProgramsPage';
 import { ProgramCreationWizard } from './pages/admin/ProgramCreationWizard';
 import { ProgramCohortsPage } from './pages/admin/ProgramCohortsPage';
 import { CohortDetailPage } from './pages/admin/CohortDetailPage';
+import { ProfilePage } from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
-import ProtectedRoute from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/common/ProtectedRoute';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import { ErrorTestPage } from './pages/admin/ErrorTestPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,8 +27,9 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
+      <AuthProviderComponent>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
           <Routes>
             {/* Public route */}
             <Route path="/login" element={<LoginPage />} />
@@ -43,15 +45,12 @@ function App() {
           >
             <Route index element={<Navigate to="/admin/programs" replace />} />
             <Route path="admin">
-              {/* All users can view */}
-              <Route path="participants" element={<ParticipantsPage />} />
-              <Route path="users" element={<UsersPage />} />
-              <Route path="locations" element={<LocationsPage />} />
+              {/* Programs - All users can view */}
               <Route path="programs" element={<ProgramsPage />} />
               <Route path="programs/:programId/cohorts" element={<ProgramCohortsPage />} />
               <Route path="cohorts/:cohortId" element={<CohortDetailPage />} />
 
-              {/* Only ADMIN and COORDINATOR can create/edit programs */}
+              {/* Programs - Only ADMIN and COORDINATOR can create/edit */}
               <Route
                 path="programs/new"
                 element={
@@ -69,13 +68,35 @@ function App() {
                 }
               />
 
-              <Route path="design-system" element={<DesignSystemPage />} />
-              <Route path="error-test" element={<ErrorTestPage />} />
+              {/* Participants - All users can view */}
+              <Route path="participants" element={<ParticipantsPage />} />
+
+              {/* Users - Only ADMIN and HR can access */}
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'HR']}>
+                    <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Locations - All users can view */}
+              <Route path="locations" element={<LocationsPage />} />
+
+              {/* Design system - Only available in development */}
+              {import.meta.env.DEV && (
+                <Route path="design-system" element={<DesignSystemPage />} />
+              )}
             </Route>
+
+            {/* Profile - All authenticated users */}
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+          </Routes>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </AuthProviderComponent>
     </ErrorBoundary>
   );
 }

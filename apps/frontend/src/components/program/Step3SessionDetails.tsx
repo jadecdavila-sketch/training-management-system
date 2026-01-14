@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { participantsApi } from '@/services/api';
+import { RichTextEditor } from '@/components/common/RichTextEditor';
 
 interface Session {
   id: string;
@@ -68,7 +69,7 @@ export function Step3SessionDetails({ formData, updateFormData, onNext, onBack }
   // Fetch all participants to extract unique departments and job titles
   const { data: participantsData } = useQuery({
     queryKey: ['participants'],
-    queryFn: () => participantsApi.getAll({ page: 1, pageSize: 1000 }),
+    queryFn: () => participantsApi.getAll({ page: 1, pageSize: 100 }),
   });
 
   // Extract unique departments and job titles
@@ -419,14 +420,13 @@ function SessionAccordion({ session, sessionIndex, isExpanded, onToggle, onUpdat
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              Description (Email Body)
             </label>
-            <textarea
+            <RichTextEditor
               value={session.description}
-              onChange={(e) => onUpdate(session.id, { description: e.target.value })}
-              placeholder="Describe the session content and objectives..."
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              onChange={(value) => onUpdate(session.id, { description: value })}
+              placeholder="Describe the session content and objectives. This will be used as the email invitation body."
+              className="border border-gray-300 rounded-lg"
             />
           </div>
 

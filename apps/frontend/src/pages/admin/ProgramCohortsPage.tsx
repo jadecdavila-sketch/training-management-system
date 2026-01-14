@@ -88,9 +88,18 @@ export const ProgramCohortsPage = () => {
             {cohorts.map((cohort: any) => {
               const scheduleCount = cohort.schedules?.length || 0;
               const participantCount = cohort.participants?.length || 0;
-              const unassignedSessions = cohort.schedules?.filter(
-                (s: any) => !s.facilitatorId || !s.locationId
-              ).length || 0;
+              const unassignedSessions = cohort.schedules?.filter((s: any) => {
+                // Check if session requires facilitator assignment
+                const needsFacilitator = s.session?.requiresFacilitator && !s.facilitatorId;
+
+                // Check if session requires location assignment (not virtual)
+                const isVirtual = s.session?.locationTypes?.some((type: string) =>
+                  type.toLowerCase() === 'virtual'
+                );
+                const needsLocation = !isVirtual && !s.locationId;
+
+                return needsFacilitator || needsLocation;
+              }).length || 0;
 
               return (
                 <div

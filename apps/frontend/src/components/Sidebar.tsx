@@ -1,20 +1,20 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Sidebar = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, clearAuth } = useAuthStore();
+  const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
   };
 
-  const navItems = [
+  // Navigation items with role-based access
+  const allNavItems = [
     {
       path: '/admin/programs',
       label: 'Programs',
+      roles: ['ADMIN', 'COORDINATOR', 'HR', 'FACILITATOR'], // All users can view
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -25,6 +25,7 @@ export const Sidebar = () => {
     {
       path: '/admin/participants',
       label: 'Participants',
+      roles: ['ADMIN', 'COORDINATOR', 'HR', 'FACILITATOR'], // All users can view
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -37,6 +38,7 @@ export const Sidebar = () => {
     {
       path: '/admin/users',
       label: 'Users',
+      roles: ['ADMIN', 'HR'], // Only ADMIN and HR
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -44,9 +46,10 @@ export const Sidebar = () => {
         </svg>
       )
     },
-    { 
-      path: '/admin/locations', 
+    {
+      path: '/admin/locations',
       label: 'Locations',
+      roles: ['ADMIN', 'COORDINATOR', 'HR', 'FACILITATOR'], // All users can view
       icon: (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
@@ -54,26 +57,40 @@ export const Sidebar = () => {
         </svg>
       )
     },
-     { 
-    path: '/admin/design-system', 
-    label: 'Design System',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="2" width="20" height="20" rx="2" />
-        <circle cx="8" cy="8" r="2" />
-        <path d="M14.5 9.5L19 14" />
-        <line x1="15" y1="15" x2="19" y2="19" />
-      </svg>
-    )
-  },
+    {
+      path: '/admin/design-system',
+      label: 'Design System',
+      roles: ['ADMIN'], // Only show in dev/admin mode
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="2" y="2" width="20" height="20" rx="2" />
+          <circle cx="8" cy="8" r="2" />
+          <path d="M14.5 9.5L19 14" />
+          <line x1="15" y1="15" x2="19" y2="19" />
+        </svg>
+      )
+    },
   ];
+
+  // Filter nav items by user role
+  const navItems = user
+    ? allNavItems.filter(item => item.roles.includes(user.role))
+    : [];
 
   return (
     <div className="w-16 bg-primary-500 flex flex-col items-center py-6 gap-6">
-      {/* User info at top */}
-      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary-500 font-bold text-sm" title={user?.name || 'User'}>
+      {/* User profile link at top */}
+      <Link
+        to="/profile"
+        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
+          location.pathname === '/profile'
+            ? 'bg-white text-primary-500'
+            : 'bg-white/90 text-primary-500 hover:bg-white'
+        }`}
+        title={`${user?.name || 'User'} Profile`}
+      >
         {user?.name?.charAt(0).toUpperCase() || 'U'}
-      </div>
+      </Link>
 
       <div className="h-px w-10 bg-primary-400" />
 

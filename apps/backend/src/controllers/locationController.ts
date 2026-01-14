@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { CreateLocationDto, UpdateLocationDto } from '@tms/shared';
+import { auditService } from '../services/auditService.js';
 
 export const getAll = async (req: Request, res: Response) => {
   try {
@@ -53,13 +54,27 @@ export const getById = async (req: Request, res: Response) => {
 export const create = async (req: Request, res: Response) => {
   try {
     const data: CreateLocationDto = req.body;
-    
+
     const location = await prisma.location.create({
       data: {
         ...data,
         equipment: data.equipment || [],
       },
     });
+
+    // Audit log: Location created
+    await auditService.logResourceChange(
+      req,
+      'CREATE',
+      'location',
+      location.id,
+      location.name,
+      'SUCCESS',
+      {
+        type: location.type,
+        capacity: location.capacity,
+      }
+    );
 
     res.status(201).json({ success: true, data: location });
   } catch (error) {
@@ -77,6 +92,19 @@ export const update = async (req: Request, res: Response) => {
       data,
     });
 
+    // Audit log: Location updated
+    await auditService.logResourceChange(
+      req,
+      'UPDATE',
+      'location',
+      location.id,
+      location.name,
+      'SUCCESS',
+      {
+        fieldsUpdated: Object.keys(data),
+      }
+    );
+
     res.json({ success: true, data: location });
   } catch (error: any) {
     if (error.code === 'P2025') {
@@ -89,7 +117,30 @@ export const update = async (req: Request, res: Response) => {
 export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get location info before deleting
+    const location = await prisma.location.findUnique({
+      where: { id },
+      select: { name: true, type: true },
+    });
+
     await prisma.location.delete({ where: { id } });
+
+    // Audit log: Location deleted
+    if (location) {
+      await auditService.logResourceChange(
+        req,
+        'DELETE',
+        'location',
+        id,
+        location.name,
+        'SUCCESS',
+        {
+          type: location.type,
+        }
+      );
+    }
+
     res.json({ success: true });
   } catch (error: any) {
     if (error.code === 'P2025') {

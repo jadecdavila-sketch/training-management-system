@@ -60,6 +60,52 @@ export const createProgramSchema = z.object({
 
 export const updateProgramSchema = createProgramSchema.partial();
 
+// Program creation wizard schema (matches actual frontend format)
+export const createProgramWizardSchema = z.object({
+  programName: z.string().min(1, 'Program name required').max(200),
+  region: z.string().max(100).optional(),
+  description: z.string().max(2000).optional(),
+  sessions: z.array(z.object({
+    name: z.string().min(1, 'Session name required').max(200),
+    description: z.string().max(2000).optional(),
+    duration: z.number().int().min(15).max(480).default(60),
+    participantTypes: z.array(z.string()).default([]),
+    facilitatorSkills: z.array(z.string()).default([]),
+    locationTypes: z.array(z.string()).default([]),
+    requiresFacilitator: z.boolean().default(true),
+    groupSizeMin: z.number().int().min(1).default(1),
+    groupSizeMax: z.number().int().min(1).max(1000).default(20),
+  })).min(1, 'At least one session required'),
+  scheduledSessions: z.array(z.object({
+    sessionId: z.string(),
+    sessionName: z.string(),
+    startTime: z.string().datetime(),
+    endTime: z.string().datetime(),
+  })),
+  cohortDetails: z.array(z.object({
+    id: z.string(),
+    name: z.string().min(1).max(200),
+    startDate: z.string().optional(), // Can be date string or ISO datetime
+    endDate: z.string().optional(),
+    maxParticipants: z.number().int().min(1).max(10000).default(20),
+    participantFilters: z.object({
+      employeeStartDateFrom: z.string().optional(),
+      employeeStartDateTo: z.string().optional(),
+    }).optional(),
+  })).min(1, 'At least one cohort required'),
+  facilitatorAssignments: z.array(z.object({
+    cohortId: z.string(),
+    sessionId: z.string(),
+    facilitatorEmail: z.string().email().optional(),
+  })).optional(),
+  locationAssignments: z.array(z.object({
+    cohortId: z.string(),
+    sessionId: z.string(),
+    locationName: z.string().optional(),
+  })).optional(),
+  originalFormData: z.any().optional(),
+});
+
 // ============================================
 // USER SCHEMAS
 // ============================================

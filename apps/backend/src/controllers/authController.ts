@@ -73,6 +73,19 @@ export const authController = {
         });
       }
 
+      // DEVELOPMENT: Return mock user if using BYPASS_AUTH
+      if (process.env.BYPASS_AUTH === 'true' && process.env.NODE_ENV === 'development' && req.user.userId === 'test-user-id') {
+        return res.json({
+          success: true,
+          data: {
+            id: 'test-user-id',
+            email: 'test@example.com',
+            name: 'Test Admin User',
+            role: 'ADMIN',
+          },
+        });
+      }
+
       const user = await authService.getUserById(req.user.userId);
 
       res.json({

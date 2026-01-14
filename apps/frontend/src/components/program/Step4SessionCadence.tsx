@@ -463,25 +463,39 @@ export function Step4SessionCadence({ formData, updateFormData, onNext, onBack }
                       const widthPercent = 100 / totalSessions;
                       const leftPercent = (sessionIdx * widthPercent);
 
+                      // Calculate span for multi-day sessions
+                      const startDayIndex = DAYS.indexOf(scheduledSession.startDay);
+                      const endDayIndex = DAYS.indexOf(scheduledSession.endDay);
+                      const isMultiDay = startDayIndex !== endDayIndex && scheduledSession.startWeek === scheduledSession.endWeek;
+
+                      // Calculate width to span multiple day columns
+                      const daySpan = isMultiDay ? (endDayIndex - startDayIndex + 1) : 1;
+                      const spanWidth = daySpan * 100; // span across multiple cells
+
                       return (
                         <div
                           key={sessionIdx}
-                          className="rounded p-2 mb-2 group absolute top-2 transition-colors"
+                          className="rounded p-2 mb-2 group absolute top-2 transition-all border border-white/20"
                           style={{
                             backgroundColor: sessionColor.bg,
                             color: sessionColor.text,
                             height: `${heightPx - 16}px`,
                             left: `${leftPercent}%`,
-                            width: `calc(${widthPercent}% - 8px)`,
+                            width: isMultiDay
+                              ? `calc(${spanWidth}% + ${(daySpan - 1) * 2}px)` // Span across day columns, accounting for borders
+                              : `calc(${widthPercent}% - 8px)`,
                             marginLeft: '4px',
+                            opacity: '0.75',
                             zIndex: 10,
                             pointerEvents: 'none'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = sessionColor.hover;
+                            e.currentTarget.style.opacity = '0.85';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = sessionColor.bg;
+                            e.currentTarget.style.opacity = '0.75';
                           }}
                         >
                           <div className="text-sm font-medium truncate">{session?.name}</div>

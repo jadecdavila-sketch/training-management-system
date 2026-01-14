@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import bcrypt from 'bcrypt';
+import { auditService } from '../services/auditService.js';
 
 interface CreateUserDto {
   email: string;
@@ -130,6 +131,20 @@ export const create = async (req: Request, res: Response) => {
       },
     });
 
+    // Audit log: User created
+    await auditService.logResourceChange(
+      req,
+      'CREATE',
+      'user',
+      user.id,
+      user.name,
+      'SUCCESS',
+      {
+        email: user.email,
+        role: user.role,
+      }
+    );
+
     res.status(201).json({ success: true, data: user });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -143,6 +158,16 @@ export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { facilitatorProfile, ...userData }: UpdateUserDto = req.body;
+
+    // Get current user state for audit comparison
+    const currentUser = await prisma.user.findUnique({
+      where: { id },
+      select: { name: true, email: true, role: true },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
 
     const updateData: any = {
       email: userData.email,
@@ -197,6 +222,30 @@ export const update = async (req: Request, res: Response) => {
       },
     });
 
+    // Audit log: User updated (especially important for role changes)
+    const changes: string[] = [];
+    if (userData.name && userData.name !== currentUser.name) changes.push('name');
+    if (userData.email && userData.email !== currentUser.email) changes.push('email');
+    if (userData.role && userData.role !== currentUser.role) changes.push('role');
+    if (userData.password) changes.push('password');
+
+    if (changes.length > 0) {
+      await auditService.logResourceChange(
+        req,
+        'UPDATE',
+        'user',
+        user.id,
+        user.name,
+        'SUCCESS',
+        {
+          changes,
+          previousRole: currentUser.role !== user.role ? currentUser.role : undefined,
+          newRole: currentUser.role !== user.role ? user.role : undefined,
+          email: user.email,
+        }
+      );
+    }
+
     res.json({ success: true, data: user });
   } catch (error: any) {
     if (error.code === 'P2025') {
@@ -209,7 +258,31 @@ export const update = async (req: Request, res: Response) => {
 export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    // Get user info before deleting
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { name: true, email: true, role: true },
+    });
+
     await prisma.user.delete({ where: { id } });
+
+    // Audit log: User deleted
+    if (user) {
+      await auditService.logResourceChange(
+        req,
+        'DELETE',
+        'user',
+        id,
+        user.name,
+        'SUCCESS',
+        {
+          email: user.email,
+          role: user.role,
+        }
+      );
+    }
+
     res.json({ success: true });
   } catch (error: any) {
     if (error.code === 'P2025') {
@@ -254,5 +327,197 @@ export const getFacilitators = async (_req: Request, res: Response) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch facilitators' });
+  }
+};
+
+/**
+ * GDPR Article 15: Right to Access
+ * Export all personal data for a user
+ */
+export const exportUserData = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Get comprehensive user data
+    const user = await prisma.user.findUnique({
+      where: { id },
+      include: {
+        facilitatorProfile: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Query participant profile separately (match by email since no direct user relation)
+    const participant = await prisma.participant.findUnique({
+      where: { email: user.email },
+      include: {
+        cohorts: {
+          include: {
+            cohort: {
+              include: {
+                program: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Get audit logs for this user
+    const auditLogs = await prisma.auditLog.findMany({
+      where: { userId: id },
+      orderBy: { timestamp: 'desc' },
+      take: 100, // Last 100 events
+    });
+
+    // Construct comprehensive data export
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      exportType: 'GDPR Article 15 - Right to Access',
+      personalData: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        ssoProvider: user.ssoProvider,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        lastLoginAt: user.lastLoginAt,
+      },
+      facilitatorProfile: user.facilitatorProfile ? {
+        qualifications: user.facilitatorProfile.qualifications,
+      } : null,
+      participantProfile: participant ? {
+        firstName: participant.firstName,
+        lastName: participant.lastName,
+        department: participant.department,
+        location: participant.location,
+        hireDate: participant.hireDate,
+        employeeId: participant.employeeId,
+        status: participant.status,
+        cohortEnrollments: participant.cohorts.map(cp => ({
+          cohortName: cp.cohort.name,
+          programName: cp.cohort.program.name,
+          cohortStartDate: cp.cohort.startDate,
+          cohortEndDate: cp.cohort.endDate,
+          enrolledAt: cp.enrolledAt,
+        })),
+      } : null,
+      activityHistory: auditLogs.map(log => ({
+        timestamp: log.timestamp,
+        eventType: log.eventType,
+        action: log.action,
+        outcome: log.outcome,
+        resourceType: log.resourceType,
+        ipAddress: log.ipAddress,
+      })),
+    };
+
+    // Audit log: Data export
+    await auditService.logBulkOperation(
+      req,
+      'EXPORT',
+      'user_data',
+      1,
+      'SUCCESS'
+    );
+
+    res.json({
+      success: true,
+      data: exportData,
+    });
+  } catch (error) {
+    console.error('Failed to export user data:', error);
+    res.status(500).json({ success: false, error: 'Failed to export user data' });
+  }
+};
+
+/**
+ * GDPR Article 17: Right to be Forgotten
+ * Anonymize user data while preserving referential integrity
+ */
+export const gdprDelete = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { email: true, name: true, role: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Anonymize user data (preserve ID for referential integrity)
+    const anonymizedEmail = `deleted-${id}@anonymized.local`;
+    const anonymizedName = `[Deleted User ${id.slice(0, 8)}]`;
+
+    await prisma.$transaction(async (tx) => {
+      // Anonymize user account
+      await tx.user.update({
+        where: { id },
+        data: {
+          email: anonymizedEmail,
+          name: anonymizedName,
+          password: null, // Remove password
+          ssoProvider: null,
+          ssoId: null,
+        },
+      });
+
+      // Anonymize participant profile if exists (match by email)
+      const participant = await tx.participant.findUnique({
+        where: { email: user.email },
+      });
+
+      if (participant) {
+        await tx.participant.update({
+          where: { id: participant.id },
+          data: {
+            firstName: '[Deleted]',
+            lastName: '[User]',
+            email: anonymizedEmail,
+            department: '[Deleted]',
+            location: '[Deleted]',
+          },
+        });
+      }
+
+      // Anonymize audit logs for this user
+      await tx.auditLog.updateMany({
+        where: { userId: id },
+        data: {
+          userEmail: anonymizedEmail,
+        },
+      });
+    });
+
+    // Audit log: GDPR deletion
+    await auditService.logResourceChange(
+      req,
+      'DELETE',
+      'user',
+      id,
+      anonymizedName,
+      'SUCCESS',
+      {
+        gdprDeletion: true,
+        originalEmail: user.email,
+        originalName: user.name,
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'User data anonymized successfully',
+    });
+  } catch (error) {
+    console.error('Failed to anonymize user data:', error);
+    res.status(500).json({ success: false, error: 'Failed to anonymize user data' });
   }
 };

@@ -53,8 +53,8 @@ async function getCsrfToken(): Promise<string> {
   return fetchCsrfToken();
 }
 
-// Generic fetch wrapper with auth token and CSRF protection
-async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
+// Generic fetch wrapper with auth token, CSRF protection, and timeout
+async function fetchApi<T>(url: string, options?: RequestInit & { timeout?: number }): Promise<T> {
   // Get token from auth store
   const token = useAuthStore.getState().accessToken;
 
@@ -65,29 +65,48 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<T> {
     csrfHeader = { 'X-CSRF-Token': csrf };
   }
 
-  const response = await fetch(`${API_BASE}${url}`, {
-    ...options,
-    credentials: 'include', // Include cookies for CSRF
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...csrfHeader,
-      ...options?.headers,
-    },
-  });
+  // Set up abort controller for timeout
+  const controller = new AbortController();
+  const timeoutMs = options?.timeout ?? 30000; // Default 30 seconds
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    // Handle 401 unauthorized - clear auth and redirect to login
-    if (response.status === 401) {
-      useAuthStore.getState().clearAuth();
-      window.location.href = '/login';
+  try {
+    const response = await fetch(`${API_BASE}${url}`, {
+      ...options,
+      signal: controller.signal,
+      credentials: 'include', // Include cookies for CSRF
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...csrfHeader,
+        ...options?.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      // Handle 401 unauthorized - clear auth and redirect to login
+      if (response.status === 401) {
+        useAuthStore.getState().clearAuth();
+        window.location.href = '/login';
+      }
+
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || 'Request failed');
     }
 
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
-  }
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
 
-  return response.json();
+    // Handle timeout errors
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+
+    throw error;
+  }
 }
 
 // Participants API
@@ -187,6 +206,14 @@ export const usersApi = {
 
   getFacilitators: () =>
     fetchApi<{ success: boolean; data: Array<{ id: string; name: string; email: string; skills: string[] }> }>('/users/facilitators/list'),
+
+  exportData: (id: string) =>
+    fetchApi<{ success: boolean; data: any }>(`/users/${id}/export`),
+
+  gdprDelete: (id: string) =>
+    fetchApi<{ success: boolean; message: string }>(`/users/${id}/gdpr-delete`, {
+      method: 'DELETE',
+    }),
 };
 
 // Programs API

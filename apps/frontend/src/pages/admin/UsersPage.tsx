@@ -17,6 +17,7 @@ export const UsersPage = () => {
   const [skillFilters, setSkillFilters] = useState<string[]>([]);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showSkillMenu, setShowSkillMenu] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const toggleRoleFilter = (role: UserRole) => {
     setRoleFilters(prev =>
@@ -50,6 +51,36 @@ export const UsersPage = () => {
     );
     return matchesRole && matchesSkill;
   }) || [];
+
+  const handleExportData = async (user: User, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await usersApi.exportData(user.id);
+      const dataStr = JSON.stringify(response.data, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `user-data-${user.email}-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Failed to export user data');
+    }
+  };
+
+  const gdprDeleteMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.gdprDelete(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setUserToDelete(null);
+    },
+    onError: () => {
+      alert('Failed to anonymize user data');
+    },
+  });
 
   return (
     <div className="flex-1">
@@ -210,6 +241,9 @@ export const UsersPage = () => {
                   <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-600 uppercase tracking-wider">
                     Last Login
                   </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-secondary-600 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-200">
@@ -250,6 +284,34 @@ export const UsersPage = () => {
                     <td className="px-6 py-5">
                       <div className="text-sm text-secondary-600">-</div>
                     </td>
+                    <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleExportData(user, e)}
+                          className="p-2 text-info-600 hover:bg-info-50 rounded-lg transition-colors"
+                          title="Export user data (GDPR)"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" y1="15" x2="12" y2="3" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUserToDelete(user);
+                          }}
+                          className="p-2 text-error-600 hover:bg-error-50 rounded-lg transition-colors"
+                          title="Anonymize user data (GDPR)"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -257,11 +319,56 @@ export const UsersPage = () => {
           </div>
         )}
       </div>
-      <AddEditUserModal 
-        open={isModalOpen} 
+      <AddEditUserModal
+        open={isModalOpen}
         onOpenChange={setIsModalOpen}
         user={selectedUser}
       />
+
+      {/* GDPR Delete Confirmation Dialog */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-error-100 rounded-full flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-error-600">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-secondary-900 mb-2">
+                  Anonymize User Data
+                </h3>
+                <p className="text-sm text-secondary-600 mb-4">
+                  This will anonymize all personal data for <strong>{userToDelete.name}</strong> ({userToDelete.email}). This action cannot be undone.
+                </p>
+                <p className="text-xs text-secondary-500 mb-4">
+                  The user's email will be changed to a placeholder, their name will be removed, and all personal information will be anonymized while preserving system referential integrity.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setUserToDelete(null)}
+                    disabled={gdprDeleteMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="bg-error-600 hover:bg-error-700"
+                    onClick={() => gdprDeleteMutation.mutate(userToDelete.id)}
+                    disabled={gdprDeleteMutation.isPending}
+                  >
+                    {gdprDeleteMutation.isPending ? 'Anonymizing...' : 'Anonymize User'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

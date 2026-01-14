@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/authService.js';
+import { auditService } from '../services/auditService.js';
 
 // Extend Express Request type to include user
 declare global {
@@ -16,7 +17,11 @@ declare global {
 
 /**
  * Middleware to require authentication
- * Extracts JWT from Authorization header and verifies it
+ * Supports both:
+ * 1. JWT from Authorization header (for API clients)
+ * 2. JWT from cookie (for browser sessions after SSO)
+ *
+ * In development, if BYPASS_AUTH=true, bypasses auth with a test user
  */
 export const requireAuth = async (
   req: Request,
@@ -24,17 +29,42 @@ export const requireAuth = async (
   next: NextFunction
 ) => {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
+    // DEVELOPMENT: Bypass authentication if enabled
+    // Multiple safeguards to prevent accidental use in production
+    if (
+      process.env.BYPASS_AUTH === 'true' &&
+      process.env.NODE_ENV === 'development' &&
+      !process.env.DATABASE_URL?.includes('prod') &&
+      !process.env.DATABASE_URL?.includes('railway') &&
+      !process.env.DATABASE_URL?.includes('render')
+    ) {
+      req.user = {
+        userId: 'test-user-id',
+        email: 'test@example.com',
+        role: 'ADMIN',
+      };
+      return next();
+    }
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    let token: string | undefined;
+
+    // Strategy 1: Check Authorization header (API clients)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+
+    // Strategy 2: Check cookie (browser after SSO login)
+    if (!token && req.cookies?.auth_token) {
+      token = req.cookies.auth_token;
+    }
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'No token provided',
       });
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     // Verify token
     const decoded = authService.verifyToken(token);
@@ -69,6 +99,9 @@ export const requireRole = (...allowedRoles: string[]) => {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
+      // Log authorization denial
+      auditService.logAuthorizationDenied(req, allowedRoles, req.user.role);
+
       return res.status(403).json({
         success: false,
         error: 'Insufficient permissions',

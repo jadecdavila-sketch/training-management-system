@@ -107,7 +107,12 @@ const CalendarView = ({ schedules, cohortStartDate, cohortEndDate, onSessionClic
 
                 <div className="space-y-1">
                   {daySessions.map((session, idx) => {
-                    const hasIssues = !session.facilitatorId || !session.locationId;
+                    const isVirtual = session.session?.locationTypes?.some((type: string) =>
+                      type.toLowerCase() === 'virtual'
+                    );
+                    const hasIssues =
+                      (session.session?.requiresFacilitator && !session.facilitatorId) ||
+                      (!isVirtual && !session.locationId);
                     return (
                       <button
                         key={idx}
@@ -195,8 +200,14 @@ export const CohortDetailPage = () => {
 
   // Filter and search schedules
   const filteredSchedules = sortedSchedules.filter((schedule: any) => {
-    // Status filter
-    const hasAssignments = schedule.facilitatorId && schedule.locationId;
+    // Status filter - check if session needs assignments
+    const isVirtual = schedule.session?.locationTypes?.some((type: string) =>
+      type.toLowerCase() === 'virtual'
+    );
+    const needsFacilitator = schedule.session?.requiresFacilitator && !schedule.facilitatorId;
+    const needsLocation = !isVirtual && !schedule.locationId;
+    const hasAssignments = !needsFacilitator && !needsLocation;
+
     if (statusFilter === 'assigned' && !hasAssignments) return false;
     if (statusFilter === 'unassigned' && hasAssignments) return false;
 
@@ -217,7 +228,14 @@ export const CohortDetailPage = () => {
 
   const schedules = sortedSchedules;
   const participants = cohort.participants || [];
-  const unassignedCount = schedules.filter((s: any) => !s.facilitatorId || !s.locationId).length;
+  const unassignedCount = schedules.filter((s: any) => {
+    const isVirtual = s.session?.locationTypes?.some((type: string) =>
+      type.toLowerCase() === 'virtual'
+    );
+    const needsFacilitator = s.session?.requiresFacilitator && !s.facilitatorId;
+    const needsLocation = !isVirtual && !s.locationId;
+    return needsFacilitator || needsLocation;
+  }).length;
 
   // Get unique departments from participants
   const uniqueDepartments = Array.from(
@@ -599,6 +617,10 @@ export const CohortDetailPage = () => {
                                 <p className="font-medium text-secondary-900">
                                   {schedule.location.name}
                                 </p>
+                              ) : schedule.session?.locationTypes?.some((type: string) =>
+                                  type.toLowerCase() === 'virtual'
+                                ) ? (
+                                <p className="font-medium text-secondary-900">Virtual</p>
                               ) : (
                                 <p className="text-orange-600 font-medium">Not assigned</p>
                               )}

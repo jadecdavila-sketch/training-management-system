@@ -17,4 +17,8 @@ router.post('/', requireRole('ADMIN', 'HR'), userController.create);
 router.put('/:id', requireRole('ADMIN', 'HR'), userController.update);
 router.delete('/:id', requireRole('ADMIN'), userController.remove);
 
+// GDPR compliance endpoints - only ADMIN
+router.get('/:id/export', requireRole('ADMIN'), userController.exportUserData);
+router.delete('/:id/gdpr-delete', requireRole('ADMIN'), userController.gdprDelete);
+
 export default router;

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { auditService } from '../services/auditService.js';
 
 const prisma = new PrismaClient();
 
@@ -12,6 +13,17 @@ export const moveParticipant = async (req: Request, res: Response) => {
         success: false,
         error: 'participantId, fromCohortId, and toCohortId are required',
       });
+    }
+
+    // Get participant and cohort details for audit logging
+    const [participant, fromCohort, toCohort] = await Promise.all([
+      prisma.participant.findUnique({ where: { id: participantId } }),
+      prisma.cohort.findUnique({ where: { id: fromCohortId } }),
+      prisma.cohort.findUnique({ where: { id: toCohortId } }),
+    ]);
+
+    if (!participant) {
+      return res.status(404).json({ success: false, error: 'Participant not found' });
     }
 
     // Verify the participant exists in the source cohort
@@ -69,6 +81,24 @@ export const moveParticipant = async (req: Request, res: Response) => {
       });
     });
 
+    // Audit log: Participant moved between cohorts
+    await auditService.logResourceChange(
+      req,
+      'UPDATE',
+      'cohort_enrollment',
+      participantId,
+      `${participant.firstName} ${participant.lastName}`,
+      'SUCCESS',
+      {
+        action: 'participant_moved',
+        participantEmail: participant.email,
+        fromCohort: fromCohort?.name,
+        fromCohortId,
+        toCohort: toCohort?.name,
+        toCohortId,
+      }
+    );
+
     res.json({
       success: true,
       message: 'Participant moved successfully',
@@ -92,6 +122,16 @@ export const removeParticipant = async (req: Request, res: Response) => {
         success: false,
         error: 'participantId and cohortId are required',
       });
+    }
+
+    // Get participant and cohort details for audit logging
+    const [participant, cohort] = await Promise.all([
+      prisma.participant.findUnique({ where: { id: participantId } }),
+      prisma.cohort.findUnique({ where: { id: cohortId } }),
+    ]);
+
+    if (!participant) {
+      return res.status(404).json({ success: false, error: 'Participant not found' });
     }
 
     // Verify the enrollment exists
@@ -120,6 +160,22 @@ export const removeParticipant = async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Audit log: Participant removed from cohort
+    await auditService.logResourceChange(
+      req,
+      'DELETE',
+      'cohort_enrollment',
+      participantId,
+      `${participant.firstName} ${participant.lastName}`,
+      'SUCCESS',
+      {
+        action: 'participant_removed',
+        participantEmail: participant.email,
+        cohort: cohort?.name,
+        cohortId,
+      }
+    );
 
     res.json({
       success: true,
