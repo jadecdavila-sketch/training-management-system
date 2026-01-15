@@ -10,4 +10,4 @@ cmds = ["pnpm install --no-frozen-lockfile"]
 cmds = ["cd apps/backend && pnpm prisma generate && pnpm build"]
 
 [start]
-cmd = "cd apps/backend && node dist/index.js"
+cmd = "cd apps/backend && npx prisma db push && node dist/index.js"
