@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/authService.js';
+import '../types/express.js';
 
 export const authController = {
   /**
