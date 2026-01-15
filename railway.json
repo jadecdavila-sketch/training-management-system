@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/schema/railway-config.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "pnpm install --no-frozen-lockfile && cd apps/backend && pnpm prisma generate && pnpm build"
+  },
+  "deploy": {
+    "startCommand": "cd apps/backend && npx prisma db push && node dist/index.js",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 300
+  }
+}
