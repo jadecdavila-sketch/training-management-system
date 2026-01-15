@@ -39,21 +39,21 @@ function mapRoleFromGroups(groups: string[] = []): UserRole {
  * This setup is compatible with Azure AD, Okta, and generic SAML 2.0 providers
  */
 if (process.env.SAML_ENABLED === 'true') {
-  passport.use(
-    new SamlStrategy(
-      {
-        entryPoint: process.env.SAML_ENTRY_POINT!, // IdP SSO URL
-        issuer: process.env.SAML_ISSUER || 'urn:tms:app', // Your app's identifier
-        callbackUrl: `${process.env.API_URL}/auth/saml/callback`,
-        cert: process.env.SAML_CERT!, // IdP's public certificate (PEM format)
-        identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
-        // Optional: Sign requests if IdP requires it
-        decryptionPvk: process.env.SAML_PRIVATE_KEY,
-        privateKey: process.env.SAML_PRIVATE_KEY,
-        // Accept different certificate formats
-        signatureAlgorithm: 'sha256' as const,
-      },
-      async (profile: SamlProfile, done: any) => {
+  // Cast to any to work around type incompatibility between passport-saml and @types/passport
+  const samlStrategy = new SamlStrategy(
+    {
+      entryPoint: process.env.SAML_ENTRY_POINT!, // IdP SSO URL
+      issuer: process.env.SAML_ISSUER || 'urn:tms:app', // Your app's identifier
+      callbackUrl: `${process.env.API_URL}/auth/saml/callback`,
+      cert: process.env.SAML_CERT!, // IdP's public certificate (PEM format)
+      identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+      // Optional: Sign requests if IdP requires it
+      decryptionPvk: process.env.SAML_PRIVATE_KEY,
+      privateKey: process.env.SAML_PRIVATE_KEY,
+      // Accept different certificate formats
+      signatureAlgorithm: 'sha256' as const,
+    },
+    async (profile: SamlProfile, done: any) => {
         try {
           // Extract user info from SAML assertion
           const email = profile.email || profile.nameID || profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
@@ -101,18 +101,17 @@ if (process.env.SAML_ENABLED === 'true') {
             });
           }
 
-          // Return user with userId for our Express.User type
-          done(null, {
-            ...user,
-            userId: user.id,
-          });
-        } catch (error) {
-          console.error('SAML authentication error:', error);
-          done(error, null);
-        }
-      }
-    )
-  );
+        // Return user with userId for our Express.User type
+      done(null, {
+        ...user,
+        userId: user.id,
+      });
+    } catch (error) {
+      console.error('SAML authentication error:', error);
+      done(error, null);
+    }
+  });
+  passport.use(samlStrategy as any);
 }
 
 /**
