@@ -1,5 +1,7 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm"]
+nixPkgs = ["nodejs_20"]
+aptPkgs = []
+cmds = ["npm install -g pnpm@10"]
 
 [phases.install]
 cmds = ["pnpm install --no-frozen-lockfile"]
