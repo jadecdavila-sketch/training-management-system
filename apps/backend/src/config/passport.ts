@@ -1,6 +1,7 @@
 import passport from 'passport';
 import { Strategy as SamlStrategy, Profile } from 'passport-saml';
 import { PrismaClient, UserRole } from '@prisma/client';
+import '../types/express.js';
 
 const prisma = new PrismaClient();
 
@@ -48,9 +49,9 @@ if (process.env.SAML_ENABLED === 'true') {
         identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
         // Optional: Sign requests if IdP requires it
         decryptionPvk: process.env.SAML_PRIVATE_KEY,
-        privateCert: process.env.SAML_PRIVATE_KEY,
+        privateKey: process.env.SAML_PRIVATE_KEY,
         // Accept different certificate formats
-        signatureAlgorithm: 'sha256',
+        signatureAlgorithm: 'sha256' as const,
       },
       async (profile: SamlProfile, done: any) => {
         try {
@@ -100,7 +101,11 @@ if (process.env.SAML_ENABLED === 'true') {
             });
           }
 
-          done(null, user);
+          // Return user with userId for our Express.User type
+          done(null, {
+            ...user,
+            userId: user.id,
+          });
         } catch (error) {
           console.error('SAML authentication error:', error);
           done(error, null);
@@ -139,7 +144,11 @@ passport.deserializeUser(async (id: string, done) => {
       return done(new Error('User not found'), null);
     }
 
-    done(null, user);
+    // Return user with userId for our Express.User type
+    done(null, {
+      ...user,
+      userId: user.id,
+    });
   } catch (error) {
     done(error, null);
   }

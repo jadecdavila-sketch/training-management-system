@@ -396,7 +396,6 @@ export const exportUserData = async (req: Request, res: Response) => {
         department: participant.department,
         location: participant.location,
         hireDate: participant.hireDate,
-        employeeId: participant.employeeId,
         status: participant.status,
         cohortEnrollments: participant.cohorts.map(cp => ({
           cohortName: cp.cohort.name,
