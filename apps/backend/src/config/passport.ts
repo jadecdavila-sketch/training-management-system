@@ -1,7 +1,7 @@
 import passport from 'passport';
 import { Strategy as SamlStrategy, Profile } from 'passport-saml';
 import { PrismaClient, UserRole } from '@prisma/client';
-import '../types/express.js';
+// Type augmentation is loaded via tsconfig typeRoots
 
 const prisma = new PrismaClient();
 

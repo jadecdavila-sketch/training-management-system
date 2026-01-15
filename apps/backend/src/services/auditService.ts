@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Request } from 'express';
 import { logger } from '../lib/logger.js';
-import '../types/express.js';
+// Type augmentation is loaded via tsconfig typeRoots
 
 const prisma = new PrismaClient();
 

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/authService.js';
 import { auditService } from '../services/auditService.js';
-import '../types/express.js';
+// Type augmentation is loaded via tsconfig typeRoots
 
 /**
  * Middleware to require authentication

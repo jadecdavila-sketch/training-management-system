@@ -1,24 +1,17 @@
 // Extend Express Request type to include authenticated user
 // This file properly augments the Express namespace and passport User type
+// This is an ambient declaration file - it doesn't need to be imported
 
-export interface AuthenticatedUser {
-  userId: string;
-  email: string;
-  role: string;
-  // Passport SAML user properties (from deserialized user)
-  id?: string;
-  name?: string;
-  ssoProvider?: string;
-  lastLoginAt?: Date;
-  createdAt?: Date;
-}
-
-declare global {
-  namespace Express {
-    // Augment passport's User interface
-    interface User extends AuthenticatedUser {}
+declare namespace Express {
+  interface User {
+    userId: string;
+    email: string;
+    role: string;
+    // Passport SAML user properties (from deserialized user)
+    id?: string;
+    name?: string;
+    ssoProvider?: string;
+    lastLoginAt?: Date;
+    createdAt?: Date;
   }
 }
-
-// This is needed to make this file a module
-export {};
