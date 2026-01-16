@@ -42,9 +42,9 @@ export const requireAuth = async (
       token = authHeader.substring(7);
     }
 
-    // Strategy 2: Check cookie (browser after SSO login)
-    if (!token && req.cookies?.auth_token) {
-      token = req.cookies.auth_token;
+    // Strategy 2: Check cookie (browser after SSO login or email/password login)
+    if (!token && req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
     }
 
     if (!token) {

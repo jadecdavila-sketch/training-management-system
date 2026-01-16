@@ -33,6 +33,22 @@ export const authController = {
 
       const result = await authService.login(email, password);
 
+      // Set access token in HTTP-only cookie for security
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 8 * 60 * 60 * 1000, // 8 hours
+      });
+
+      // Set refresh token in HTTP-only cookie
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+
       res.json({
         success: true,
         data: result,
@@ -100,11 +116,21 @@ export const authController = {
 
   /**
    * POST /api/auth/logout
-   * Logout (client-side token deletion, server just acknowledges)
+   * Logout - clears auth cookies
    */
   async logout(_req: Request, res: Response) {
-    // With JWT, logout is handled client-side by deleting the token
-    // This endpoint exists for consistency and future session management
+    // Clear auth cookies
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
     res.json({
       success: true,
       message: 'Logged out successfully',
