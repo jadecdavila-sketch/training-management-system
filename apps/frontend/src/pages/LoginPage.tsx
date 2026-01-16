@@ -140,15 +140,13 @@ export default function LoginPage() {
             </div>
           </form>
 
-          {/* Demo accounts - only show if SSO is disabled */}
-          {import.meta.env.VITE_SAML_ENABLED !== 'true' && (
-            <div className="text-sm text-center text-gray-600">
-              <p>Demo accounts:</p>
-              <p className="mt-1">
-                <strong>Admin:</strong> admin@test.com / Admin12345678#
-              </p>
-            </div>
-          )}
+          {/* Demo account hint */}
+          <div className="text-sm text-center text-gray-500 bg-gray-50 rounded-md p-3">
+            <p className="font-medium text-gray-700">Demo Account</p>
+            <p className="mt-1 font-mono text-xs">
+              admin@tms.com / admin123
+            </p>
+          </div>
         </div>
       </div>
     </div>
