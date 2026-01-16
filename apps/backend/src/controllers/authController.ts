@@ -34,18 +34,19 @@ export const authController = {
       const result = await authService.login(email, password);
 
       // Set access token in HTTP-only cookie for security
+      // Use sameSite: 'none' for cross-site cookies (frontend on different domain)
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: true, // Required for sameSite: 'none'
+        sameSite: 'none', // Allow cross-site cookies
         maxAge: 8 * 60 * 60 * 1000, // 8 hours
       });
 
       // Set refresh token in HTTP-only cookie
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
@@ -119,16 +120,16 @@ export const authController = {
    * Logout - clears auth cookies
    */
   async logout(_req: Request, res: Response) {
-    // Clear auth cookies
+    // Clear auth cookies (must match settings used when setting)
     res.clearCookie('accessToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
     });
     res.clearCookie('refreshToken', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true,
+      sameSite: 'none',
     });
 
     res.json({
