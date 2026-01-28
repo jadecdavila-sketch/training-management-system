@@ -43,10 +43,10 @@ function validateDatabaseUrl(value: string): void {
     throw new Error('DATABASE_URL must be a PostgreSQL connection string (postgresql:// or postgres://)');
   }
 
-  // Basic validation of connection string format
-  const urlPattern = /^postgres(ql)?:\/\/.+@.+:\d+\/.+/;
+  // Basic validation of connection string format (port is optional)
+  const urlPattern = /^postgres(ql)?:\/\/.+@.+(:\d+)?\/.+/;
   if (!urlPattern.test(value)) {
-    throw new Error('DATABASE_URL format appears invalid. Expected: postgresql://user:password@host:port/database');
+    throw new Error('DATABASE_URL format appears invalid. Expected: postgresql://user:password@host/database');
   }
 }
 
