@@ -97,6 +97,11 @@ export const validateCsrfToken = (
     return next();
   }
 
+  // Skip in demo mode
+  if (process.env.DEMO_MODE === 'true') {
+    return next();
+  }
+
   // Get token from cookie
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   if (!cookieToken) {

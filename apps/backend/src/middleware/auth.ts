@@ -34,6 +34,16 @@ export const requireAuth = async (
       return next();
     }
 
+    // DEMO MODE: Bypass authentication for demo/showcase deployments
+    if (process.env.DEMO_MODE === 'true') {
+      req.user = {
+        userId: 'demo-admin-id',
+        email: 'admin@tms.com',
+        role: 'ADMIN',
+      };
+      return next();
+    }
+
     let token: string | undefined;
 
     // Strategy 1: Check Authorization header (API clients)

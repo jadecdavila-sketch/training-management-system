@@ -45,6 +45,18 @@ export function AuthProviderComponent({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Initialize auth provider
     const init = async () => {
+      // Demo mode: skip auth, use demo admin user
+      if (import.meta.env.VITE_DEMO_MODE === 'true') {
+        setUser({
+          id: 'demo-admin-id',
+          email: 'admin@tms.com',
+          name: 'Demo Admin',
+          role: 'ADMIN',
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // For SelfHostedAuthProvider, call initialize
       if ('initialize' in authProvider && typeof authProvider.initialize === 'function') {
         await authProvider.initialize();

@@ -104,6 +104,19 @@ export const authController = {
         });
       }
 
+      // DEMO MODE: Return demo admin user
+      if (process.env.DEMO_MODE === 'true' && req.user.userId === 'demo-admin-id') {
+        return res.json({
+          success: true,
+          data: {
+            id: 'demo-admin-id',
+            email: 'admin@tms.com',
+            name: 'Demo Admin',
+            role: 'ADMIN',
+          },
+        });
+      }
+
       const user = await authService.getUserById(req.user.userId);
 
       res.json({
